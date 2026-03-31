@@ -1138,18 +1138,25 @@ end)
 util.AddNetworkString("HMCD_TraitorDeathState")
 util.AddNetworkString("HMCD_RequestTraitorStatuses")
 
+local function HMCD_GetTraitorRecipients()
+    local recipients = {}
+
+    for _, ply in player.Iterator() do
+        if ply.isTraitor then
+            recipients[#recipients + 1] = ply
+        end
+    end
+
+    return recipients
+end
+
 
 function MODE:SendTraitorDeathState(traitor, is_alive)
     if not traitor.CurAppearance then return end
     local name = traitor.CurAppearance.AName
     
 
-    local recipients = {}
-    for _, ply in player.Iterator() do
-        if ply.isTraitor and ply.MainTraitor then
-            table.insert(recipients, ply)
-        end
-    end
+    local recipients = HMCD_GetTraitorRecipients()
     
     net.Start("HMCD_TraitorDeathState")
     net.WriteString(name)
@@ -1182,7 +1189,7 @@ hook.Add("PlayerCanPickupWeapon", "HMCD_TraitorRadioPickup", function( ply, weap
 end)
 
 net.Receive("HMCD_RequestTraitorStatuses", function(len, ply)
-    if not ply.isTraitor or not ply.MainTraitor then return end
+    if not ply.isTraitor then return end
     
 
     for _, other_ply in player.Iterator() do
@@ -1612,7 +1619,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                     end
                 end
             else
-                if(current_ply.isTraitor)then
+                if(current_ply.isTraitor and current_ply.MainTraitor)then
                     MODE.Types[MODE.Type].TraitorLoot(current_ply)
                 end
 
@@ -1622,7 +1629,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
             end
             
             if(MODE.Type == "soe")then
-                if(current_ply.isTraitor)then
+                if(current_ply.isTraitor and current_ply.MainTraitor)then
                     local walkie_talkie = current_ply:Give("weapon_walkie_talkie")
 					if walkie_talkie.Frequencies then
 						MODE.TraitorFrequency = MODE.TraitorFrequency or math.random(1, #walkie_talkie.Frequencies)
@@ -1664,7 +1671,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                             traitor_amt = traitor_amt + 1
                             
 
-                            if this_player.MainTraitor and other_ply.CurAppearance then
+                            if other_ply.CurAppearance then
                                 local Appearance = other_ply.CurAppearance
                                 local color = Appearance.AColor or color_white
                                 local name = Appearance.AName or "error"
@@ -1699,7 +1706,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                         net.WriteUInt(0, MODE.TraitorExpectedAmtBits)
                     end
                     
-                    if (this_player.MainTraitor) then
+                    if (this_player.isTraitor) then
 
                         for _, traitor_info in ipairs(traitor_assistants) do
                             net.WriteColor(traitor_info[1], false)
@@ -1707,7 +1714,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                         end
 
                         timer.Simple(0.5, function()
-                            if IsValid(this_player) and this_player.isTraitor and this_player.MainTraitor then
+                            if IsValid(this_player) and this_player.isTraitor then
                                 net.Start("HMCD_UpdateTraitorAssistants")
                                     net.WriteUInt(#traitor_assistants, 8)
                                     
@@ -1737,39 +1744,36 @@ hook.Add("PlayerSpawn", "HMCD_UpdateTraitorsList", function(ply)
 	if not ply.isTraitor then return end
 	
 	timer.Simple(0.5, function()
-		for _, main_traitor in player.Iterator() do
-			if IsValid(main_traitor) and main_traitor.isTraitor and main_traitor.MainTraitor then
-				local traitor_assistants = {}
-				
-				for _, other_ply in player.Iterator() do
-					if other_ply.isTraitor then
-						local Appearance = other_ply.CurAppearance
-						if Appearance then
-							local color = Appearance.AColor or color_white
-							local name = Appearance.AName or "error"
-							local steamID = other_ply:SteamID() or ""
-							
-							if not IsColor(color) then
-								color = Color(color.r, color.g, color.b)
-							end
-							
-							table.insert(traitor_assistants, {color, name, steamID})
-						end
+		local traitor_assistants = {}
+		local recipients = HMCD_GetTraitorRecipients()
+
+		for _, other_ply in player.Iterator() do
+			if other_ply.isTraitor then
+				local Appearance = other_ply.CurAppearance
+				if Appearance then
+					local color = Appearance.AColor or color_white
+					local name = Appearance.AName or "error"
+					local steamID = other_ply:SteamID() or ""
+					
+					if not IsColor(color) then
+						color = Color(color.r, color.g, color.b)
 					end
+					
+					table.insert(traitor_assistants, {color, name, steamID})
 				end
-				
-				net.Start("HMCD_UpdateTraitorAssistants")
-				net.WriteUInt(#traitor_assistants, 8)
-				
-				for _, info in ipairs(traitor_assistants) do
-					net.WriteColor(info[1])
-					net.WriteString(info[2])
-					net.WriteString(info[3])
-				end
-				
-				net.Send(main_traitor)
 			end
 		end
+
+		net.Start("HMCD_UpdateTraitorAssistants")
+		net.WriteUInt(#traitor_assistants, 8)
+		
+		for _, info in ipairs(traitor_assistants) do
+			net.WriteColor(info[1])
+			net.WriteString(info[2])
+			net.WriteString(info[3])
+		end
+		
+		net.Send(recipients)
 	end)
 end)
 
@@ -1782,39 +1786,36 @@ hook.Add("PlayerDeath", "HMCD_UpdateTraitorsList", function(ply)
 		end
 		
 		timer.Simple(0.4, function()
-			for _, main_traitor in player.Iterator() do
-				if IsValid(main_traitor) and main_traitor.isTraitor and main_traitor.MainTraitor then
-					local traitor_assistants = {}
-					
-					for _, other_ply in player.Iterator() do
-						if other_ply.isTraitor then
-							local Appearance = other_ply.CurAppearance
-							if Appearance then
-								local color = Appearance.AColor or color_white
-								local name = Appearance.AName or "error"
-								local steamID = other_ply:SteamID() or ""
-								
-								if not IsColor(color) then
-									color = Color(color.r, color.g, color.b)
-								end
-								
-								table.insert(traitor_assistants, {color, name, steamID})
-							end
+			local traitor_assistants = {}
+			local recipients = HMCD_GetTraitorRecipients()
+
+			for _, other_ply in player.Iterator() do
+				if other_ply.isTraitor then
+					local Appearance = other_ply.CurAppearance
+					if Appearance then
+						local color = Appearance.AColor or color_white
+						local name = Appearance.AName or "error"
+						local steamID = other_ply:SteamID() or ""
+						
+						if not IsColor(color) then
+							color = Color(color.r, color.g, color.b)
 						end
+						
+						table.insert(traitor_assistants, {color, name, steamID})
 					end
-					
-					net.Start("HMCD_UpdateTraitorAssistants")
-					net.WriteUInt(#traitor_assistants, 8)
-					
-					for _, info in ipairs(traitor_assistants) do
-						net.WriteColor(info[1])
-						net.WriteString(info[2])
-						net.WriteString(info[3])
-					end
-					
-					net.Send(main_traitor)
 				end
 			end
+
+			net.Start("HMCD_UpdateTraitorAssistants")
+			net.WriteUInt(#traitor_assistants, 8)
+			
+			for _, info in ipairs(traitor_assistants) do
+				net.WriteColor(info[1])
+				net.WriteString(info[2])
+				net.WriteString(info[3])
+			end
+			
+			net.Send(recipients)
 		end)
 	end)
 end)

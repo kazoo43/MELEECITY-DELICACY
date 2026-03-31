@@ -1,10 +1,45 @@
---
 local PANEL = {}
 
 local blurMat = Material("pp/blurscreen")
 local Dynamic = 0
 
 BlurBackground = BlurBackground or hg.DrawBlur
+
+local function WrapTextLimited(text, font, maxWidth, maxLines)
+    text = tostring(text or "")
+    if text == "" then
+        return {""}
+    end
+
+    surface.SetFont(font)
+    local words = string.Explode(" ", text)
+    local lines = {""}
+
+    for _, word in ipairs(words) do
+        local line = lines[#lines]
+        local candidate = line == "" and word or (line .. " " .. word)
+        local cw = surface.GetTextSize(candidate)
+        if cw <= maxWidth then
+            lines[#lines] = candidate
+        else
+            if #lines < maxLines then
+                lines[#lines + 1] = word
+            else
+                local trim = lines[#lines]
+                if trim == "" then
+                    trim = word
+                end
+                while #trim > 0 and surface.GetTextSize(trim) > maxWidth do
+                    trim = string.sub(trim, 1, -2)
+                end
+                lines[#lines] = trim
+                break
+            end
+        end
+    end
+
+    return lines
+end
 
 function PANEL:Init()
     self.Map = ""
@@ -15,7 +50,7 @@ function PANEL:Init()
     self.hovered = false
     self.alpha = 0
     self.setalpha = 0
-    self:SetFont("ZB_ScrappersMedium")
+    self:SetFont("ZCity_Veteran")
 	self:SetPaintBackground(false)
 	self:SetContentAlignment(5)
     self:SetTextColor(color_white)
@@ -26,29 +61,28 @@ end
 
 
 function PANEL:Paint(w, h)
-    if self.disabled then return end
-
-    surface.SetDrawColor(255,255,255,255)
-    surface.SetMaterial(self.MapIcon)
-    surface.DrawTexturedRect(0,-w/2,w+15,w+15)
-
-    BlurBackground(self)
-
-    surface.SetDrawColor(0, 0, 0, 50)
-    surface.DrawRect(0, 0, w, h)
-
-    if self.disabled then
-        surface.SetDrawColor(255, 255, 255, 50)
-    else
-        surface.SetDrawColor(239, 47, 47)
+    if self.MapIcon then
+        surface.SetDrawColor(255, 255, 255, 40)
+        surface.SetMaterial(self.MapIcon)
+        surface.DrawTexturedRect(-12, -12, w + 24, h + 24)
     end
 
-    surface.DrawOutlinedRect(0, 0, w, h, ScreenScale(0.5))
+    surface.SetDrawColor(10, 10, 10, 220)
+    surface.DrawRect(0, 0, w, h)
 
-    self.lerp = Lerp( FrameTime() * 5, self.lerp, w * (self.Votes / player.GetCount()) )
+    surface.SetDrawColor(2, 2, 2, 120)
+    surface.DrawRect(0, h * 0.5, w, h * 0.5)
 
-    surface.SetDrawColor(169, 0, 0, 100)
-    surface.DrawRect( 0, 0, self.lerp, h )
+    local outlineR = self.hovered and 235 or 170
+    local outlineA = self.hovered and 220 or 165
+    surface.SetDrawColor(outlineR, outlineR, outlineR, outlineA)
+    surface.DrawOutlinedRect(0, 0, w, h, 2)
+
+    local plyCount = math.max(player.GetCount(), 1)
+    self.lerp = Lerp(FrameTime() * 7, self.lerp, w * math.Clamp(self.Votes / plyCount, 0, 1))
+
+    surface.SetDrawColor(225, 225, 225, 95)
+    surface.DrawRect(0, 0, self.lerp, h)
 
     if self.Win and self.BipCD < CurTime() then
         self.alpha = 255
@@ -64,9 +98,54 @@ function PANEL:Paint(w, h)
         })
     end
 
-    surface.SetDrawColor(239, 47, 47, self.alpha)
+    surface.SetDrawColor(255, 255, 255, self.alpha)
     surface.DrawRect(0, 0, w, h)
+    
+    local mapText = self.DisplayName or self.Map or ""
+    local font = "ZCity_Veteran"
+    local textMaxW = math.max(70, w - 28)
+    local lines = WrapTextLimited(mapText, font, textMaxW, 3)
+    if #lines >= 3 then
+        local firstW = surface.GetTextSize(lines[1] or "")
+        local secondW = surface.GetTextSize(lines[2] or "")
+        local thirdW = surface.GetTextSize(lines[3] or "")
+        if firstW > textMaxW or secondW > textMaxW or thirdW > textMaxW then
+            font = "ZCity_Tiny"
+            lines = WrapTextLimited(mapText, font, textMaxW, 3)
+        end
+    end
+    surface.SetFont(font)
+    local _, lineH = surface.GetTextSize("A")
+    local linesCount = math.max(#lines, 1)
+    local totalH = lineH * linesCount + (linesCount - 1) * 2
+    local textY = math.max(8, (h - totalH) * 0.5 - 6)
 
+    surface.SetTextColor(220, 220, 220, 245)
+    for i = 1, linesCount do
+        local line = lines[i] or ""
+        if line ~= "" then
+            surface.SetTextPos(14, textY + (i - 1) * (lineH + 2))
+            surface.DrawText(line)
+        end
+    end
+
+    local voteText = tostring(self.Votes) .. " votes"
+    surface.SetFont("ZCity_Tiny")
+    local voteW, voteH = surface.GetTextSize(voteText)
+    surface.SetTextColor(185, 185, 185, 230)
+    surface.SetTextPos(w - voteW - 10, h - voteH - 8)
+    surface.DrawText(voteText)
+
+    if self.Blacklisted then
+        surface.SetDrawColor(0, 0, 0, 160)
+        surface.DrawRect(0, 0, w, h)
+        local msg = "Map is blacklisted"
+        surface.SetFont("ZCity_Small")
+        local mw, mh = surface.GetTextSize(msg)
+        surface.SetTextColor(255, 255, 255, 245)
+        surface.SetTextPos((w - mw) * 0.5, (h - mh) * 0.5)
+        surface.DrawText(msg)
+    end
 end
 
 function PANEL:OnCursorEntered()
@@ -80,6 +159,9 @@ function PANEL:OnCursorEntered()
         bIgnoreConfig = true
     })
     self.hovered = true
+    if isfunction(self.OnPreviewHover) then
+        self:OnPreviewHover()
+    end
 end
 
 function PANEL:OnCursorExited()

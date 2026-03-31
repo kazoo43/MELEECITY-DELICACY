@@ -1579,6 +1579,7 @@ local IsValid = IsValid
 	--//
 
 	local hg_movement_stamina_debuff = CreateConVar("hg_movement_stamina_debuff","0.3",{FCVAR_REPLICATED,FCVAR_ARCHIVE,FCVAR_NOTIFY},"Multiply movement debuff when having low stamina",0,1)
+	local hg_movement_sprint_windup_mul = CreateConVar("hg_movement_sprint_windup_mul","1.2",{FCVAR_REPLICATED,FCVAR_ARCHIVE,FCVAR_NOTIFY},"Multiply sprint acceleration speed",0.5,3)
 	local vecZero = Vector()
 	local vomitVPAng = Angle(1,0,0)
 	hook.Add("SetupMove", "HG(StartCommand)", function(ply, mv, cmd)
@@ -1710,7 +1711,7 @@ local IsValid = IsValid
 		ply.CurrentFrictionMul = ply.CurrentFrictionMul or 1
 		ply.FrictionGainMul = 0.016
 		ply.FrictionLoseMul = 0.21
-		ply.SpeedGainMul = 115 * weightmul * (ply.organism.superfighter and 5 or 1) * (ply:GetNWInt("SpeedGainClassMul", 1) or 1)
+		ply.SpeedGainMul = 115 * weightmul * (ply.organism.superfighter and 5 or 1) * (ply:GetNWInt("SpeedGainClassMul", 1) or 1) * hg_movement_sprint_windup_mul:GetFloat()
 		ply.SpeedLoseMul = 420
 		ply.SpeedSharpLoseMul = 0.009
 		ply.InertiaBlend = 1500 * weightmul * (ply.organism.superfighter and 100 or 1)
@@ -1751,8 +1752,17 @@ local IsValid = IsValid
 
 		mul = mul * (ply:GetNWBool("TauntStopMoving", false) and 0.01 or 1)
 
-		if(runnin and velLen >= 10)then
-			ply.CurrentSpeed = math.Approach(ply.CurrentSpeed, (ply.move or ply:GetRunSpeed()) * mul, delta_time * ply.SpeedGainMul)
+		local has_move_input = (fm ~= 0) or (sm ~= 0)
+		local has_forward_intent = fm > 0
+		local sprinting_intent = runnin and has_forward_intent and not slow_walking and not aiming and not ply:Crouching()
+		ply.SprintWindup = ply.SprintWindup or 0
+		local sprint_windup_in = delta_time * 3.2 * hg_movement_sprint_windup_mul:GetFloat() * math.Clamp(weightmul, 0.6, 1)
+		local sprint_windup_out = delta_time * 4.6
+		ply.SprintWindup = math.Approach(ply.SprintWindup, sprinting_intent and 1 or 0, sprinting_intent and sprint_windup_in or sprint_windup_out)
+
+		if(runnin and (velLen >= 1 or has_move_input))then
+			local sprint_target_speed = Lerp(ply.SprintWindup, walk_speed * mul * 1.05, (ply.move or ply:GetRunSpeed()) * mul)
+			ply.CurrentSpeed = math.Approach(ply.CurrentSpeed, sprint_target_speed, delta_time * ply.SpeedGainMul)
 		else
 			if(ply:Crouching())then
 				ply.CurrentSpeed = math.Approach(ply.CurrentSpeed, crouch_walk_speed * mul, delta_time * ply.SpeedLoseMul)
@@ -1789,7 +1799,7 @@ local IsValid = IsValid
 		local change_mul = math.abs(ply.CurrentSpeed - slow_walk_speed)
 
 		ply.LastChangeVelocity = change
-		ply.CurrentSpeed = math.Approach(ply.CurrentSpeed, slow_walk_speed * mul, delta_time * change * change_mul * ply.SpeedSharpLoseMul * 0.25 * 200)
+		ply.CurrentSpeed = math.Approach(ply.CurrentSpeed, slow_walk_speed * mul, delta_time * change * change_mul * ply.SpeedSharpLoseMul * 0.25 * 200 * (1 + (ply.SprintWindup or 0) * 0.6))
 		ply.LastVelocity = vel
 		ply.LastVelocityLen = velLen
 		--//
@@ -1810,7 +1820,11 @@ local IsValid = IsValid
 		end
 
 		if(fm < 0)then
-			movement_penalty = math.max(movement_penalty, 1.3)
+			movement_penalty = math.max(movement_penalty, 1.3 + (ply.SprintWindup or 0) * 0.4)
+		end
+
+		if math.abs(sm) > 0 then
+			movement_penalty = movement_penalty * (1 + (ply.SprintWindup or 0) * 0.2)
 		end
 
 		--if(CLIENT)then

@@ -7,7 +7,7 @@ local Selects = {
     {Title = "return", Func = function(luaMenu) luaMenu:Close() end},
     {Title = "main menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
     {Title = "settings", Func = function(luaMenu) luaMenu:SwitchToSettings() end},
-    {Title = "discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://discord.gg/475EmEdTgH")  end},
+    {Title = "discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://discord.gg/ZXUCAwuke2")  end},
     {Title = "achievements", Func = function(luaMenu) luaMenu:SwitchToAchievements() end},
     {Title = "appearance", Func = function(luaMenu) luaMenu:SwitchToAppearance() end},
     {Title = "traitor menu", GamemodeOnly = true, Func = function(luaMenu) luaMenu:SwitchToTraitorMenu() end},

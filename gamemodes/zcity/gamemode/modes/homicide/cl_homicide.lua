@@ -48,17 +48,15 @@ net.Receive("HMCD_RoundStart",function()
 			chat.AddText("Traitor secret words are: \"" .. MODE.TraitorWord .. "\" and \"" .. MODE.TraitorWordSecond .. "\".")
 		end
 
-		if(lply.MainTraitor)then
+		if(MODE.TraitorExpectedAmt > 1)then
+			chat.AddText("Traitor names:")
+		end
+
+		if(lply.isTraitor)then
 			if(MODE.TraitorExpectedAmt > 1)then
-				chat.AddText("Traitor names (only you, as a main traitor can see them):")
-			end
-
-			for key = 1, MODE.TraitorExpectedAmt do
-				local traitor_info = {net.ReadColor(false), net.ReadString()}
-
-				if(MODE.TraitorExpectedAmt > 1)then
+				for key = 1, MODE.TraitorExpectedAmt do
+					local traitor_info = {net.ReadColor(false), net.ReadString()}
 					MODE.TraitorsLocal[#MODE.TraitorsLocal + 1] = traitor_info
-
 					chat.AddText(traitor_info[1], "\t" .. traitor_info[2])
 				end
 			end
@@ -340,30 +338,17 @@ function MODE:HUDPaint()
 
 	if(lply.isTraitor)then
 		cur_y = cur_y + ScreenScale(20)
+		MODE.TraitorsLocal = MODE.TraitorsLocal or {}
 
-		if(lply.MainTraitor)then
-			MODE.TraitorsLocal = MODE.TraitorsLocal or {}
+		if(#MODE.TraitorsLocal > 1)then
+			draw.SimpleText("Traitors list:", "ZB_HomicideMedium", sw * 0.5, cur_y, ColorRole, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-			if(#MODE.TraitorsLocal > 1)then
-				draw.SimpleText("Traitors list:", "ZB_HomicideMedium", sw * 0.5, cur_y, ColorRole, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			for _, traitor_info in ipairs(MODE.TraitorsLocal) do
+				local traitor_color = Color(traitor_info[1].r, traitor_info[1].g, traitor_info[1].b, 255 * fade)
+				cur_y = cur_y + ScreenScale(15)
 
-				for _, traitor_info in ipairs(MODE.TraitorsLocal) do
-					local traitor_color = Color(traitor_info[1].r, traitor_info[1].g, traitor_info[1].b, 255 * fade)
-					cur_y = cur_y + ScreenScale(15)
-
-					draw.SimpleText(traitor_info[2], "ZB_HomicideMedium", sw * 0.5, cur_y, traitor_color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-				end
+				draw.SimpleText(traitor_info[2], "ZB_HomicideMedium", sw * 0.5, cur_y, traitor_color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			end
-		else
-			draw.SimpleText("Traitor secret words:", "ZB_HomicideMedium", sw * 0.5, cur_y, ColorRole, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-
-			cur_y = cur_y + ScreenScale(15)
-
-			draw.SimpleText("\"" .. MODE.TraitorWord .. "\"", "ZB_HomicideMedium", sw * 0.5, cur_y, color_white_faded, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-
-			cur_y = cur_y + ScreenScale(15)
-
-			draw.SimpleText("\"" .. MODE.TraitorWordSecond .. "\"", "ZB_HomicideMedium", sw * 0.5, cur_y, color_white_faded, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
 	end
 

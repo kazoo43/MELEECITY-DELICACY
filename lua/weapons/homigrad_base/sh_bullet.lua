@@ -220,14 +220,6 @@ local function callbackBullet(self, tr, dmg, force, bullet, penetration)
 				mask = MASK_SHOT
 			} )
 
-			timer.Simple(0.1,function()
-				local effectdata1 = EffectData()
-				effectdata1:SetOrigin(tr.HitPos)
-				effectdata1:SetStart(hitPos + hitNormal)
-				effectdata1:SetEntity(self)
-				effectdata1:SetMagnitude(2)
-				util.Effect("eff_tracer", effectdata1)
-			end)
 		end
 	elseif ApproachAngle < MaxRicAngle * 0.7 then --previosly 0.2, made 1 for fun
 		--if CLIENT then return end
@@ -272,14 +264,6 @@ local function callbackBullet(self, tr, dmg, force, bullet, penetration)
 			endpos = hitPos + hitNormal + -NewVec * 10000,
 			mask = MASK_SHOT
 		} )
-		timer.Simple(0,function()
-			local effectdata1 = EffectData()
-			effectdata1:SetOrigin(tr.HitPos)
-			effectdata1:SetStart(hitPos + hitNormal)
-			effectdata1:SetEntity(self)
-			effectdata1:SetMagnitude(2)
-			util.Effect("eff_tracer", effectdata1)
-		end)
 	elseif math.random(2) == 1 then
 		if CLIENT then return end
 		local effectdata1 = EffectData()
@@ -810,16 +794,6 @@ function SWEP:FireBullet()
 			--if owner.suiciding then bullet.DisableLagComp = true end
 			self:FireLuaBullets(bullet)
 
-			if CLIENT and !GetGlobalBool("PhysBullets_ReplaceDefault") then					
-				if tr then
-					local effectdata1 = EffectData()
-					if tr.HitPos then effectdata1:SetOrigin(tr.HitPos) end
-					if tr.StartPos then effectdata1:SetStart(pos) end
-					effectdata1:SetEntity(self)
-					effectdata1:SetMagnitude(1)
-					util.Effect("eff_tracer", effectdata1)
-				end
-			end
 		end
     end
 

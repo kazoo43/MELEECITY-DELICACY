@@ -263,6 +263,10 @@ local function ApplyLoadout(ply)
 		end
 	end
 
+	local inv = ply:GetNetVar("Inventory", {})
+	inv["Weapons"] = inv["Weapons"] or {}
+	inv["Attachments"] = inv["Attachments"] or {}
+
 	if hasP22ExtraMag or hasP22Silencer then
 		local function applyP22Addons(wep)
 			if not IsValid(wep) then return end
@@ -276,16 +280,21 @@ local function ApplyLoadout(ply)
 
 		applyP22Addons(p22Weapon)
 
-		if hasP22Silencer or not IsValid(p22Weapon) then
-			timer.Simple(0, function()
-				if not IsValid(ply) then return end
-				applyP22Addons(ply:GetWeapon("weapon_p22"))
-			end)
+		timer.Simple(0, function()
+			if not IsValid(ply) then return end
+			applyP22Addons(ply:GetWeapon("weapon_p22"))
+		end)
+
+		timer.Simple(0.2, function()
+			if not IsValid(ply) then return end
+			applyP22Addons(ply:GetWeapon("weapon_p22"))
+		end)
+
+		if hasP22Silencer and not table.HasValue(inv["Attachments"], "supressor4") then
+			inv["Attachments"][#inv["Attachments"] + 1] = "supressor4"
 		end
 	end
 
-	local inv = ply:GetNetVar("Inventory", {})
-	inv["Weapons"] = inv["Weapons"] or {}
 	inv["Weapons"]["hg_flashlight"] = true
 
 	if skillset == "infiltrator" then

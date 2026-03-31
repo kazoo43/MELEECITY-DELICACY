@@ -11,7 +11,7 @@ function PLAYER:LegAttack()
     local isMidAir = not self:IsOnGround()
     if self:IsSprinting() and not isMidAir then return end
 
-    if isMidAir and self.organism.stamina[1] < 70 then return end
+    if isMidAir and self.organism.stamina[1] < 85 then return end
 
     local anim = "kick_pistol_base"
     anim = (self:KeyDown(IN_DUCK) or self:Crouching()) and "kick_pistol_base_crouch" or self:EyeAngles()[1] > 60 and "curbstomp_base" or self:EyeAngles()[1] > 35 and "kick_pistol_25_base" or self:EyeAngles()[1] > 20 and "kick_pistol_45_base" or anim
@@ -31,12 +31,15 @@ function PLAYER:LegAttack()
 
     if isMidAir then
         local vel = self:GetVelocity():Length()
-        local mult = Lerp(math.Clamp(vel / 700, 0, 1), 3, 5)
+        local mult = Lerp(math.Clamp(vel / 700, 0, 1), 1.25, 2.25)
         dmg = dmg * mult
     end
 
     dmg = dmg * (self:IsBerserk() and org.berserk * 5 or 1)
     dmg = dmg * (org.legstrength or 1)
+    if isMidAir then
+        dmg = math.min(dmg, 42)
+    end
     --print(dmg)
     --print(speedmul)
     self:PlayCustomAnims(anim, true, speed, true, animstopAdjust, {
@@ -122,12 +125,12 @@ function PLAYER:LegAttack()
                 self:EmitSound("weapons/melee/blunt_light" .. math.random(1,8) .. ".wav")
             elseif isMidAir then
                 -- If it's a dropkick, we want a larger hit area or forward trace to ensure it lands
-                 local tr_midair = util.TraceHull({
+                local tr_midair = util.TraceHull({
                     start = self:EyePos(),
                     endpos = self:EyePos() + ang:Forward() * 82,
                     filter = {hg.GetCurrentCharacter(self),self},
-                    maxs = rad * 2, -- Bigger hull for midair
-                    mins = -rad * 2
+                    maxs = rad * 1.4,
+                    mins = -rad * 1.4
                 })
                 if tr_midair.Hit then
                     hitSomething = true
@@ -148,8 +151,10 @@ function PLAYER:LegAttack()
                     
                     local char = hg.GetCurrentCharacter(self)
                     if char and char:IsValid() then
+                        self:PlayCustomAnims("")
+                        self.InLegKick = 0
+                        self:SetNWFloat("InLegKick", 0)
                         hg.Fake(self)
-                        -- Preserve momentum for inertia
                         local phys = char:GetPhysicsObject()
                         if IsValid(phys) then
                             phys:SetVelocity(velocity)
@@ -158,7 +163,7 @@ function PLAYER:LegAttack()
                 end)
             end
 
-            if tr.Entity.fires then
+            if IsValid(tr.Entity) and tr.Entity.fires then
             local key, fire = next(tr.Entity.fires)
 
                 if key then 
@@ -170,6 +175,7 @@ function PLAYER:LegAttack()
                 end
             end
 
+            local velocity = self:GetVelocity()
             for k,ent in ipairs(entss) do
                 if IsValid(ent) and not blacklist[ent] then
                     local normal = ang:Forward()
@@ -198,12 +204,12 @@ function PLAYER:LegAttack()
 					MaxPenLenGlobal = 1
                     
                     local horizSpeed = Vector(velocity.x, velocity.y, 0):Length()
-                    local forceMult = math.max(800, 1000 - horizSpeed / 5)
+                    local forceMult = math.max(500, 700 - horizSpeed / 6)
                     hg.AddForceRag(ent, tr.PhysicsBone or 0, normal * dmg * forceMult, 0.25)
                     ent:TakeDamageInfo(dmginfo)
                     
                     if IsValid(phys) then
-                        local forceOffsetMult = math.max(150, 200 - horizSpeed / 50)
+                        local forceOffsetMult = math.max(110, 150 - horizSpeed / 70)
                         phys:ApplyForceOffset(normal * dmg * forceOffsetMult, tr.HitPos)
                     end
 
@@ -212,14 +218,14 @@ function PLAYER:LegAttack()
 					end
 
                     if ent:IsPlayer() then
-                        if math.random(1,5) > 1 then
+                        if math.random(1,5) > 3 then
                             timer.Simple(0,function()
                                 hg.Fake(ent)
                             end)
                         end
 
                         local horizSpeed = Vector(velocity.x, velocity.y, 0):Length()
-                        local knockback = math.max(20, 30 - horizSpeed / 50) 
+                        local knockback = math.max(10, 20 - horizSpeed / 70) 
                         ent:SetVelocity(normal * knockback)
                     end
                     if hgIsDoor(ent) and !ent:GetNoDraw() then
@@ -261,10 +267,15 @@ function PLAYER:LegAttack()
     if isMidAir then
         timer.Simple(0.05, function()
             local function checkLanding()
+                if not IsValid(self) or not self:Alive() then return end
                 if self:IsOnGround() then
                     timer.Simple(0.1, function()
+                        if not IsValid(self) or not self:Alive() then return end
                         -- Only ragdoll if dropkick did NOT hit (i.e., didn't hit anything)
                         if not self:GetNWBool("DropkickHit", false) then
+                            self:PlayCustomAnims("")
+                            self.InLegKick = 0
+                            self:SetNWFloat("InLegKick", 0)
                             hg.Fake(self)
                         end
                         -- Clear the flag after checking
