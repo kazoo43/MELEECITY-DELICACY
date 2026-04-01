@@ -670,10 +670,12 @@ function MODE:Intermission()
 	local traitors_needed = 1
 	
 	if(MODE.ShouldStartRoleRound())then
-		traitors_needed = math.ceil(player_count / 9)
-		
-		if(player_count > 8 and math.random(1, 8) == 1)then
-			traitors_needed = traitors_needed + 1
+		if(player_count >= 15)then
+			traitors_needed = 3
+		elseif(player_count >= 8)then
+			traitors_needed = 2
+		else
+			traitors_needed = 1
 		end
 	end
 
@@ -699,8 +701,10 @@ function MODE:Intermission()
 			traitors_needed = traitors_needed - 1
 			traitors[#traitors + 1] = ply
 
-			main_traitor = ply
-			ply.MainTraitor = true
+			if not main_traitor then
+				main_traitor = ply
+				ply.MainTraitor = true
+			end
 		end
 	end
 
@@ -761,6 +765,8 @@ function MODE:Intermission()
 					net.WriteString("")
 					net.WriteUInt(0, MODE.TraitorExpectedAmtBits)
 				end
+
+				net.WriteUInt(0, 8)
 				
 				net.WriteString("")	--; Profession
 			net.Send(ply)
@@ -1707,6 +1713,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                     end
                     
                     if (this_player.isTraitor) then
+						net.WriteUInt(#traitor_assistants, 8)
 
                         for _, traitor_info in ipairs(traitor_assistants) do
                             net.WriteColor(traitor_info[1], false)
@@ -1726,6 +1733,8 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                                 net.Send(this_player)
                             end
                         end)
+					else
+						net.WriteUInt(0, 8)
                     end
                     
                     net.WriteString(this_player.Profession or "")

@@ -452,18 +452,40 @@ local colorBGBlacky = Color(40,40,40,255)
 hg.muteall = false
 hg.mutespect = false
 
+local function GetVoiceIconPath(ply)
+	return ply:IsMuted() and "icon16/sound_mute.png" or "icon16/sound.png"
+end
+
+local function SetSoundButtonIcon(button, ply)
+	if not IsValid(button) or not IsValid(ply) then return end
+	local icon = GetVoiceIconPath(ply)
+	if button.SetImage then
+		button:SetImage(icon)
+		return
+	end
+	if button.SetIcon then
+		button:SetIcon(icon)
+		return
+	end
+	if button.SetMaterial then
+		button:SetMaterial(Material(icon))
+	end
+end
+
 local function OpenPlayerSoundSettings(selfa, ply)
 	local Menu = DermaMenu()
 	
 	if not hg.playerInfo[ply:SteamID()] or not istable(hg.playerInfo[ply:SteamID()]) then addToPlayerInfo(ply, false, 1) end
 
 	local mute = Menu:AddOption( "Mute", function(self)
-		if hg.muteall || hg.mutespect then return end
+		if not IsValid(ply) then return end
+		if hg.muteall or (hg.mutespect and not ply:Alive()) then return end
 		
-		self:SetChecked(not ply:IsMuted())
-		ply:SetMuted( not ply:IsMuted() )
-		selfa:SetImage(not ply:IsMuted() && "icon16/sound.png" || "icon16/sound_mute.png")
-		addToPlayerInfo(ply, ply:IsMuted(), hg.playerInfo[ply:SteamID()][2])
+		local muted = not ply:IsMuted()
+		ply:SetMuted(muted)
+		self:SetChecked(muted)
+		SetSoundButtonIcon(selfa, ply)
+		addToPlayerInfo(ply, muted, hg.playerInfo[ply:SteamID()] and hg.playerInfo[ply:SteamID()][2] or 1)
 	end ) -- get your stupid one line ass outta here
 
 	mute:SetIsCheckable( true )
@@ -844,7 +866,7 @@ function GM:ScoreboardShow()
 		soundButton:Dock(RIGHT)
 		soundButton:SetWide(ScreenScale(10))
 		soundButton:DockMargin(8, 5, 6, 5)
-		soundButton:SetImage(not ply:IsMuted() and "icon16/sound.png" or "icon16/sound_mute.png")
+		SetSoundButtonIcon(soundButton, ply)
 		soundButton.DoClick = function(self)
 			OpenPlayerSoundSettings(self, ply)
 		end

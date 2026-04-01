@@ -160,6 +160,8 @@ hook.Add("HG_ReplacePhrase", "BraindeadPhrase", function(ply, phrase, muffed, pi
 end)
 
 hook.Add("PlayerCanHearPlayersVoice", "RealisticVoice", function(listener,speaker)
+	if not IsValid(listener) or not IsValid(speaker) then return false, false end
+	if speaker.ulx_gagged or speaker:GetNWBool("ulx_gagged", false) then return false, false end
 	local result,is3D = ChatLogic(speaker,listener,false,false)
 	local speak = speaker:IsSpeaking()
 	speaker.IsSpeak = speak

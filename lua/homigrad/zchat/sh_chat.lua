@@ -223,6 +223,14 @@ else
 	end)
 
 	hook.Add("PlayerSay", "ZChat", function(ply, text)
+		if not IsValid(ply) then return "" end
+		if ply:GetNWBool("ulx_muted", false) then
+			if ULib and ULib.tsayError then
+				ULib.tsayError(ply, "You are muted, and therefore cannot speak! Use asay for admin chat if urgent.", true)
+			end
+			return ""
+		end
+
  		local txtTbl = {text}
 		hook.Run("HG_PlayerSay", ply, txtTbl, text) // our shit gets called later
 		text = isstring(txtTbl[1]) and txtTbl[1] or text // checks to see if shit hits the ceiling

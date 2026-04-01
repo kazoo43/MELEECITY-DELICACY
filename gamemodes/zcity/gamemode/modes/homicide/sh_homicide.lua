@@ -189,17 +189,28 @@ local function SanitizeLoadout(rawLoadout, fillRandomIfEmpty)
 	local points = Skillsets[normalizedLoadout.skillset].cost
 	local usedWeapons = {}
 	local rawWeaponIds = {}
+	local rawWeaponSet = {}
 	if type(rawLoadout.weapons) == "table" then
-		for k, v in pairs(rawLoadout.weapons) do
+		for _, v in ipairs(rawLoadout.weapons) do
 			local weaponId
 			if type(v) == "string" then
 				weaponId = v
-			elseif type(k) == "string" and v == true then
+			end
+
+			if weaponId and not rawWeaponSet[weaponId] and (TraitorItems[weaponId] or TraitorAddons[weaponId]) then
+				rawWeaponSet[weaponId] = true
+				table.insert(rawWeaponIds, weaponId)
+			end
+		end
+
+		for k, v in pairs(rawLoadout.weapons) do
+			local weaponId
+			if type(k) == "string" and v == true then
 				weaponId = k
 			end
 
-			if weaponId and not usedWeapons[weaponId] and (TraitorItems[weaponId] or TraitorAddons[weaponId]) then
-				usedWeapons[weaponId] = true
+			if weaponId and not rawWeaponSet[weaponId] and (TraitorItems[weaponId] or TraitorAddons[weaponId]) then
+				rawWeaponSet[weaponId] = true
 				table.insert(rawWeaponIds, weaponId)
 			end
 		end
@@ -209,10 +220,28 @@ local function SanitizeLoadout(rawLoadout, fillRandomIfEmpty)
 	for _, weaponId in ipairs(rawWeaponIds) do
 		local weaponCost = TraitorItems[weaponId]
 		if weaponCost and not usedWeapons[weaponId] and not HasWeaponConflict(normalizedLoadout.weapons, weaponId) then
-			if points + weaponCost <= maxLoadoutPoints then
+			local bundleCost = weaponCost
+			local pendingAddons = {}
+
+			for addonId, addonInfo in pairs(TraitorAddons) do
+				if addonInfo.parent == weaponId and rawWeaponSet[addonId] and not usedWeapons[addonId] then
+					bundleCost = bundleCost + addonInfo.cost
+					pendingAddons[#pendingAddons + 1] = addonId
+				end
+			end
+
+			if points + bundleCost <= maxLoadoutPoints then
 				usedWeapons[weaponId] = true
 				table.insert(normalizedLoadout.weapons, weaponId)
 				points = points + weaponCost
+
+				for _, addonId in ipairs(pendingAddons) do
+					if not usedWeapons[addonId] then
+						usedWeapons[addonId] = true
+						table.insert(normalizedLoadout.weapons, addonId)
+						points = points + TraitorAddons[addonId].cost
+					end
+				end
 			end
 		end
 	end
@@ -268,27 +297,60 @@ local function ApplyLoadout(ply)
 	inv["Attachments"] = inv["Attachments"] or {}
 
 	if hasP22ExtraMag or hasP22Silencer then
+		local extraMagApplied = false
+
+		local function ensureP22Suppressor(wep)
+			if not IsValid(wep) or not wep.attachments or not wep.availableAttachments then return false end
+			if wep.attachments.barrel and istable(wep.attachments.barrel) and wep.attachments.barrel[1] == "supressor4" then
+				return true
+			end
+
+			hg.AddAttachmentForce(ply, wep, "supressor4")
+
+			if wep.attachments.barrel and istable(wep.attachments.barrel) and wep.attachments.barrel[1] == "supressor4" then
+				return true
+			end
+
+			local barrel = wep.availableAttachments.barrel
+			if not barrel then return false end
+
+			local idx
+			for i, att in pairs(barrel) do
+				if istable(att) and att[1] == "supressor4" then
+					idx = i
+					break
+				end
+			end
+
+			if not idx then return false end
+
+			wep.attachments.barrel = barrel[idx]
+			if wep.SyncAtts then
+				wep:SyncAtts()
+			end
+
+			return true
+		end
+
 		local function applyP22Addons(wep)
 			if not IsValid(wep) then return end
-			if hasP22ExtraMag then
+			if hasP22ExtraMag and not extraMagApplied then
 				ply:GiveAmmo(wep:GetMaxClip1(), wep:GetPrimaryAmmoType(), true)
+				extraMagApplied = true
 			end
 			if hasP22Silencer then
-				hg.AddAttachmentForce(ply, wep, "supressor4")
+				ensureP22Suppressor(wep)
 			end
 		end
 
 		applyP22Addons(p22Weapon)
 
-		timer.Simple(0, function()
-			if not IsValid(ply) then return end
-			applyP22Addons(ply:GetWeapon("weapon_p22"))
-		end)
-
-		timer.Simple(0.2, function()
-			if not IsValid(ply) then return end
-			applyP22Addons(ply:GetWeapon("weapon_p22"))
-		end)
+		for _, delay in ipairs({0, 0.2, 0.5, 1.0}) do
+			timer.Simple(delay, function()
+				if not IsValid(ply) then return end
+				applyP22Addons(ply:GetWeapon("weapon_p22"))
+			end)
+		end
 
 		if hasP22Silencer and not table.HasValue(inv["Attachments"], "supressor4") then
 			inv["Attachments"][#inv["Attachments"] + 1] = "supressor4"

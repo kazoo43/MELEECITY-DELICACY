@@ -32,8 +32,14 @@ net.Receive("HMCD_RoundStart",function()
 	MODE.TraitorWord = net.ReadString()
 	MODE.TraitorWordSecond = net.ReadString()
 	MODE.TraitorExpectedAmt = net.ReadUInt(MODE.TraitorExpectedAmtBits)
+	local traitor_list_count = net.ReadUInt(8)
 	StartTime = CurTime()
 	MODE.TraitorsLocal = {}
+
+	for key = 1, traitor_list_count do
+		local traitor_info = {net.ReadColor(false), net.ReadString()}
+		MODE.TraitorsLocal[#MODE.TraitorsLocal + 1] = traitor_info
+	end
 
 	if(lply.isTraitor and screen_time_is_default)then
 		if(MODE.TraitorExpectedAmt == 1)then
@@ -52,13 +58,9 @@ net.Receive("HMCD_RoundStart",function()
 			chat.AddText("Traitor names:")
 		end
 
-		if(lply.isTraitor)then
-			if(MODE.TraitorExpectedAmt > 1)then
-				for key = 1, MODE.TraitorExpectedAmt do
-					local traitor_info = {net.ReadColor(false), net.ReadString()}
-					MODE.TraitorsLocal[#MODE.TraitorsLocal + 1] = traitor_info
-					chat.AddText(traitor_info[1], "\t" .. traitor_info[2])
-				end
+		if(lply.isTraitor and MODE.TraitorExpectedAmt > 1)then
+			for _, traitor_info in ipairs(MODE.TraitorsLocal) do
+				chat.AddText(traitor_info[1], "\t" .. traitor_info[2])
 			end
 		end
 	end

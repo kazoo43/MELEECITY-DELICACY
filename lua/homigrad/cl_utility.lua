@@ -646,6 +646,18 @@ players : 1 humans, 0 bots (20 max)
 
 		hg.playerInfo = hg.playerInfo or {}
 
+		local function GetVoiceScale(ply, limit)
+			if not IsValid(ply) then return 0 end
+			if hg.muteall then return 0 end
+			if hg.mutespect and not ply:Alive() then return 0 end
+			if ply:IsMuted() then return 0 end
+			local value = hg.playerInfo[ply:SteamID()] and hg.playerInfo[ply:SteamID()][2] or 1
+			if limit then
+				return math.min(value, limit)
+			end
+			return value
+		end
+
 		local function UpdateVoiceDSP(listener, talker)
 			if not talker:IsSpeaking() then return end
 			if not IsValid(listener) or not IsValid(talker) or listener == talker then return end
@@ -658,13 +670,13 @@ players : 1 humans, 0 bots (20 max)
 
 			local volume = (talker:WaterLevel() == 3) and 0.25 or (trace.Hit and 0.5 or 1)
 
-			talker:SetVoiceVolumeScale(!hg.muteall and math.min(hg.playerInfo[talker:SteamID()] and hg.playerInfo[talker:SteamID()][2] or 1, volume) or 0)
+			talker:SetVoiceVolumeScale(GetVoiceScale(talker, volume))
 		end
 
 		local cachedLerp = Lerp
 
 		local function mouthmove(ply)
-			ply:SetVoiceVolumeScale(!hg.muteall and (!hg.mutespect or ply:Alive()) and (hg.playerInfo[ply:SteamID()] and hg.playerInfo[ply:SteamID()][2] or 1) or 0)
+			ply:SetVoiceVolumeScale(GetVoiceScale(ply))
 
 			if not ply:Alive() then return end
 			
