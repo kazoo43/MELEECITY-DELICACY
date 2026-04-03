@@ -72,17 +72,33 @@ function SWEP:Initialize()
     self:InitAdd()
 end
 
-SWEP.AttackTime = 0.28
-SWEP.AnimTime1 = 1.15
-SWEP.WaitTime1 = 0.75
+SWEP.AttackTime = 0.50
+SWEP.AnimTime1 = 1.60
+SWEP.WaitTime1 = 0.90
 
-SWEP.AnimTime2 = 1
-SWEP.WaitTime2 = 0.4
+SWEP.AnimTime2 = 2
+SWEP.WaitTime2 = 2
+SWEP.CanHeavyAttack = true -- Set to true to enable
+SWEP.NeckBreakChance = 0.01
+SWEP.NoReverse = true
+
+SWEP.HeavyAttackDamageMul = 6.0 -- Max damage multiplier at full charge
+SWEP.HeavyAttackWaitTime = 1.9 -- Time before you can attack again
+SWEP.HeavyAttackAnimTimeBegin = 3.0 -- Duration of the wind-up/start animation
+SWEP.HeavyAttackAnimTimeIdle = 3 -- Duration of the idle loop
+SWEP.HeavyAttackAnimTimeEnd = 1.90 -- Duration of the attack animation
+SWEP.HeavyAttackDelay = 0.5 -- Time delay before the hit actually connects (during attack anim)
+SWEP.HeavyAttackTimeLength = 0.4 -- Duration of the active hit window
+SWEP.HeavyAttackViewPunch = Angle(9, 0, 0) -- View punch angle on hit
+SWEP.HeavyAttackMaxChargeTime = 2.0 -- Time in seconds to reach max damage/shake
+SWEP.HeavyAttackSwingAng = -90 -- Custom swing angle for heavy attack
+SWEP.HeavyAttackRads = 95 -- Custom radius/arc for heavy attack
+
 
 SWEP.AnimList = {
     ["idle"] = "idle",
     ["deploy"] = "draw",
-    ["attack"] = "stab_miss",
+    ["attack"] = "stab",
     ["attack2"] = "midslash1",
 }
 
