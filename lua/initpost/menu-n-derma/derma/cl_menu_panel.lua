@@ -1,16 +1,44 @@
-----
+
 local PANEL = {}
 
 local red_select = Color(200,200,200)
 
+
+local THEME = {
+    bg_dark = Color(8, 8, 12, 245),
+    bg_panel = Color(12, 12, 18, 230),
+    bg_card = Color(18, 18, 25, 200),
+    border = Color(60, 60, 75, 120),
+    border_bright = Color(100, 100, 120, 180),
+    text_primary = Color(235, 235, 240),
+    text_secondary = Color(160, 160, 175),
+    text_dim = Color(120, 120, 135),
+    accent_red = Color(200, 50, 50),
+    accent_red_glow = Color(255, 70, 70, 80),
+    accent_white = Color(255, 255, 255),
+    hover_bg = Color(255, 255, 255, 25),
+    hover_border = Color(255, 255, 255, 100),
+    selected_bg = Color(200, 50, 50, 60),
+    selected_border = Color(200, 50, 50, 150),
+    gradient_top = Color(25, 25, 35, 200),
+    gradient_bottom = Color(10, 10, 15, 220),
+    progress_bg = Color(30, 30, 40, 180),
+    progress_fill = Color(200, 50, 50, 180),
+    slider_fill = Color(200, 50, 50, 200),
+    slider_bg = Color(20, 20, 30, 200),
+    scrollbar_bg = Color(0, 0, 0, 100),
+    scrollbar_grip = Color(80, 80, 100, 180),
+    scrollbar_grip_hover = Color(120, 120, 140, 220),
+}
+
 local Selects = {
     {Title = "return", Func = function(luaMenu) luaMenu:Close() end},
-    {Title = "main menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
     {Title = "settings", Func = function(luaMenu) luaMenu:SwitchToSettings() end},
+    {Title = "traitor menu", GamemodeOnly = true, Func = function(luaMenu) luaMenu:SwitchToTraitorMenu() end},
     {Title = "discord", Func = function(luaMenu) luaMenu:Close() gui.OpenURL("https://discord.gg/ZXUCAwuke2")  end},
     {Title = "achievements", Func = function(luaMenu) luaMenu:SwitchToAchievements() end},
     {Title = "appearance", Func = function(luaMenu) luaMenu:SwitchToAppearance() end},
-    {Title = "traitor menu", GamemodeOnly = true, Func = function(luaMenu) luaMenu:SwitchToTraitorMenu() end},
+    {Title = "main menu", Func = function(luaMenu) gui.ActivateGameUI() luaMenu:Close() end},
     {Title = "disconnect", Func = function(luaMenu)
         if IsValid(ZCityMainMenuMusic) then ZCityMainMenuMusic:SetVolume(0) end
         if IsValid(ZCityAppearanceMusic) then ZCityAppearanceMusic:SetVolume(0) end
@@ -111,6 +139,26 @@ end
 local color_red = Color(90,90,95,120)
 local clr_gray = Color(255,255,255,25)
 local clr_verygray = Color(10,10,19,235)
+
+-- Helper: draw rounded box with border
+local function DrawRoundedBoxWithBorder(x, y, w, h, radius, bgColor, borderColor, borderWidth)
+    borderWidth = borderWidth or 1
+    if borderColor then
+        surface.SetDrawColor(borderColor)
+        draw.RoundedBox(radius, x, y, w, h, borderColor)
+    end
+    draw.RoundedBox(radius, x + borderWidth, y + borderWidth, w - borderWidth * 2, h - borderWidth * 2, bgColor)
+end
+
+-- Helper: lerp color
+local function LerpColor(t, from, to)
+    return Color(
+        Lerp(t, from.r, to.r),
+        Lerp(t, from.g, to.g),
+        Lerp(t, from.b, to.b),
+        Lerp(t, from.a or 255, to.a or 255)
+    )
+end
 -- Global variable to persist music across menu opens
 ZCityMainMenuMusic = ZCityMainMenuMusic or nil
 ZCityAppearanceMusic = ZCityAppearanceMusic or nil
@@ -337,10 +385,24 @@ function PANEL:Init()
     self.menuList:SetPos(self.MenuX, self.MenuTop)
     local maxMenuHeight = math.min(ScrH() - self.MenuTop - ScreenScaleH(40), ScrH() * 0.8)
     self.menuList:SetSize(math.min(self.MenuW, ScrW() * 0.9), maxMenuHeight)
-    self.menuList.ButtonHeight = ScreenScaleH(18)
-    self.menuList.Spacing = ScreenScaleH(8)
+    self.menuList.ButtonHeight = ScreenScaleH(22)
+    self.menuList.Spacing = ScreenScaleH(10)
     self.menuList.PushStrong = ScreenScaleH(6)
     self.menuList.PushWeak = ScreenScaleH(3)
+    
+    -- Custom scrollbar styling
+    local sbar = self.menuList:GetVBar()
+    sbar:SetWide(ScreenScaleH(6))
+    sbar.Paint = function(s, w, h)
+        surface.SetDrawColor(THEME.scrollbar_bg)
+        surface.DrawRect(0, 0, w, h)
+    end
+    sbar.btnGrip.Paint = function(s, w, h)
+        local col = s:IsHovered() and THEME.scrollbar_grip_hover or THEME.scrollbar_grip
+        surface.SetDrawColor(col)
+        draw.RoundedBox(2, 0, 0, w, h, col)
+    end
+    sbar:SetHideButtons(true)
     
     if self.IsIntro then
         self.menuList:SetVisible(false)
@@ -942,14 +1004,27 @@ function PANEL:CreateSettingsPanel()
     -- Iterate over hg.settings.tbl categories
     if hg and hg.settings and hg.settings.tbl then
         for categoryName, items in SortedPairs(hg.settings.tbl) do
-            -- Category Header
-            local catLbl = vgui.Create("DLabel", self.SettingsList)
-            catLbl:SetText(string.lower(categoryName))
-            catLbl:SetFont("ZCity_Veteran")
-            catLbl:SizeToContentsY()
-            catLbl:Dock(TOP)
-            catLbl:SetTextColor(Color(255, 0, 0)) -- Red for categories
-            catLbl:DockMargin(0, ScreenScale(5), 0, ScreenScale(2))
+            -- Category header spacer with text drawn inside (will be clipped by scroll panel)
+            local catSpacer = vgui.Create("DPanel", self.SettingsList)
+            catSpacer:Dock(TOP)
+            catSpacer:SetTall(ScreenScale(32))
+            catSpacer:DockMargin(0, ScreenScale(8), 0, ScreenScale(4))
+            catSpacer:SetMouseInputEnabled(false)
+            catSpacer.CategoryName = string.upper(categoryName)
+            catSpacer.Paint = function(s, w, h)
+                -- Subtle background
+                surface.SetDrawColor(255, 255, 255, 8)
+                surface.DrawRect(0, 0, w, h)
+                -- Red accent line on left
+                surface.SetDrawColor(THEME.accent_red)
+                surface.DrawRect(0, 2, 3, h - 4)
+                
+                -- Draw category name - will be clipped by scroll panel automatically
+                surface.SetFont("ZCity_Veteran")
+                surface.SetTextColor(THEME.accent_red)
+                surface.SetTextPos(ScreenScale(14), ScreenScale(4))
+                surface.DrawText(s.CategoryName)
+            end
             
             for _, item in SortedPairs(items) do
                 local conVarName = item[2]
@@ -977,11 +1052,18 @@ function PANEL:CreateSettingsPanel()
                 pnl:SetTall(math.max(ScreenScale(25), lbl:GetTall() + ScreenScale(4)))
                 
                 if isBool then
-                    -- Container for Off/On buttons
+                    -- Container for Off/On buttons with modern toggle design
                     local toggleContainer = vgui.Create("DPanel", pnl)
                     toggleContainer:Dock(RIGHT)
-                    toggleContainer:SetWide(ScreenScale(80))
-                    toggleContainer.Paint = function() end
+                    toggleContainer:SetWide(ScreenScale(90))
+                    toggleContainer:DockMargin(0, ScreenScale(2), 0, 0)
+                    toggleContainer.Paint = function(s, w, h)
+                        -- Container background
+                        surface.SetDrawColor(THEME.bg_panel)
+                        draw.RoundedBox(4, 0, 0, w, h, THEME.bg_panel)
+                        surface.SetDrawColor(THEME.border)
+                        surface.DrawOutlinedRect(0, 0, w, h, 1)
+                    end
 
                     local btnOn = vgui.Create("DButton", toggleContainer)
                     local btnOff = vgui.Create("DButton", toggleContainer)
@@ -993,26 +1075,22 @@ function PANEL:CreateSettingsPanel()
                         -- Off Button
                         btnOff.Paint = function(s, w, h)
                             if not state then -- Active (OFF is active)
-                                surface.SetDrawColor(255, 255, 255, 255)
-                                surface.DrawRect(0, 0, w, h)
-                                s:SetTextColor(Color(0, 0, 0))
-                            else -- Inactive
-                                surface.SetDrawColor(0, 0, 0, 0)
-                                -- surface.DrawRect(0, 0, w, h)
+                                surface.SetDrawColor(THEME.accent_red)
+                                draw.RoundedBox(3, 1, 1, w - 2, h - 2, THEME.accent_red)
                                 s:SetTextColor(Color(255, 255, 255))
+                            else -- Inactive
+                                s:SetTextColor(THEME.text_secondary)
                             end
                         end
 
                         -- On Button
                         btnOn.Paint = function(s, w, h)
                             if state then -- Active (ON is active)
-                                surface.SetDrawColor(255, 255, 255, 255)
-                                surface.DrawRect(0, 0, w, h)
-                                s:SetTextColor(Color(0, 0, 0))
-                            else -- Inactive
-                                surface.SetDrawColor(0, 0, 0, 0)
-                                -- surface.DrawRect(0, 0, w, h)
+                                surface.SetDrawColor(THEME.accent_red)
+                                draw.RoundedBox(3, 1, 1, w - 2, h - 2, THEME.accent_red)
                                 s:SetTextColor(Color(255, 255, 255))
+                            else -- Inactive
+                                s:SetTextColor(THEME.text_secondary)
                             end
                         end
                     end
@@ -1054,40 +1132,69 @@ function PANEL:CreateSettingsPanel()
                     if conVar then slider:SetValue(conVar:GetFloat()) end
                     slider.Label:SetVisible(false) -- Hide default label
                     
-                    -- Custom Slider Styling (Manhunt 2 Style / Long Box)
+                    -- Custom Slider Styling (Enhanced Modern Design)
                     slider.TextArea:SetFont("ZCity_Veteran")
-                    local faintWhite = Color(255, 255, 255, 150) -- Faint white (Increased visibility)
+                    local faintWhite = Color(255, 255, 255, 180)
                     slider.TextArea:SetTextColor(faintWhite)
+                    slider.TextArea:SetContentAlignment(6) -- Right align
+                    slider.TextArea:SetUpdateOnType(true)
+                    -- Fix text area to prevent overflow
                     slider.TextArea.Paint = function(s, w, h)
-                        -- Transparent background for text area
-                        s:DrawTextEntryText(faintWhite, Color(200, 200, 200), faintWhite)
+                        -- Background for text area
+                        surface.SetDrawColor(THEME.slider_bg)
+                        draw.RoundedBox(4, 0, 0, w, h, THEME.slider_bg)
+                        surface.SetDrawColor(THEME.border)
+                        surface.DrawOutlinedRect(0, 0, w, h, 1)
+                        -- Draw text with proper alignment
+                        s:DrawTextEntryText(faintWhite, Color(220, 220, 220), faintWhite)
                     end
+                    -- Set a fixed wide value to prevent overflow
+                    slider.TextArea:SetWide(ScreenScale(50))
                     
                     slider.Slider.Paint = function(s, w, h)
-                        -- White Outline
-                        surface.SetDrawColor(255, 255, 255, 255)
-                        surface.DrawOutlinedRect(0, h/2 - ScreenScale(6), w, ScreenScale(12), 1)
+                        local barH = ScreenScale(10)
+                        local barY = h/2 - barH/2
                         
-                        -- Black Empty Space (Background of the bar)
-                        surface.SetDrawColor(0, 0, 0, 255)
-                        surface.DrawRect(1, h/2 - ScreenScale(6) + 1, w - 2, ScreenScale(12) - 2)
+                        -- Background
+                        surface.SetDrawColor(THEME.slider_bg)
+                        draw.RoundedBox(4, 0, barY, w, barH, THEME.slider_bg)
+                        surface.SetDrawColor(THEME.border)
+                        surface.DrawOutlinedRect(0, barY, w, barH, 1)
                         
-                        -- White Fill
-                        local val = s:GetValue() -- Get fractional value (0-1)
-                        -- DNumSlider's Slider is a DSlider, which has m_fValue (0-1)
-                        -- But we can also calculate it if needed. s.m_fSlideX is usually the knob position.
-                        
-                        -- Let's rely on s.m_fSlideX which is updated by DSlider
+                        -- Fill with accent color
                         local fillW = math.Clamp(s.m_fSlideX * (w - 2), 0, w - 2)
-                        
-                        surface.SetDrawColor(255, 255, 255, 255)
-                        surface.DrawRect(1, h/2 - ScreenScale(6) + 1, fillW, ScreenScale(12) - 2)
+                        surface.SetDrawColor(THEME.slider_fill)
+                        draw.RoundedBox(4, 1, barY + 1, fillW, barH - 2, THEME.slider_fill)
                     end
                     
-                    -- Hide Knob (or make it invisible as the fill represents the value)
+                    -- Styled knob
                     slider.Slider.Knob.Paint = function(s, w, h)
-                        -- Invisible knob
+                        surface.SetDrawColor(THEME.accent_white)
+                        draw.RoundedBox(3, 0, 0, w, h, THEME.accent_white)
+                        if s:IsHovered() then
+                            surface.SetDrawColor(255, 255, 255, 50)
+                            surface.DrawRect(0, 0, w, h)
+                        end
                     end
+                end
+            end
+        end
+    end
+    
+    -- Add Think function to update category header positions based on scroll
+    self.SettingsList.Think = function(s)
+        if self.SettingsCategoryHeaderPanels then
+            local scrollOffset = s:GetVBar():GetScroll()
+            local listY = self.SettingsList:GetY()
+            for _, headerData in ipairs(self.SettingsCategoryHeaderPanels) do
+                local spacer = headerData.spacer
+                local label = headerData.label
+                if IsValid(spacer) and IsValid(label) then
+                    local spacerY = spacer:GetY()
+                    local headerY = listY + spacerY - scrollOffset
+                    label:SetPos(self.SettingsList:GetX() + ScreenScale(14), headerY + ScreenScale(4))
+                    -- Hide if outside visible area
+                    label:SetVisible(headerY > -50 and headerY < ScrH())
                 end
             end
         end
@@ -1197,30 +1304,30 @@ function PANEL:CreateAchievementButton(parent, ach)
         local val = localach and localach[ach.key] and localach[ach.key].value or ach.start_value
         local progress = math.Clamp(val / ach.needed_value, 0, 1)
 
-        -- Background (Faint Black/Transparent)
-        surface.SetDrawColor(0, 0, 0, 100)
-        surface.DrawRect(0, 0, w, h)
+        -- Enhanced Background with gradient
+        surface.SetDrawColor(THEME.bg_card)
+        draw.RoundedBox(4, 0, 0, w, h, THEME.bg_card)
         
-        -- Hover Flash
+        -- Hover Glow
         if self.IsHoveredState then
-            local alpha = math.random(20, 40)
-            surface.SetDrawColor(255, 255, 255, alpha)
-            surface.DrawRect(0, 0, w, h)
+            surface.SetDrawColor(THEME.accent_red_glow)
+            draw.RoundedBox(4, 0, 0, w, h, THEME.accent_red_glow)
         end
         
-        -- Border (Faint White)
-        surface.SetDrawColor(255, 255, 255, 30)
-        surface.DrawOutlinedRect(0, 0, w, h)
+        -- Border
+        surface.SetDrawColor(self.IsHoveredState and THEME.border_bright or THEME.border)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
 
-        -- Progress Bar (Bottom)
-        local barH = ScreenScale(3)
+        -- Progress Bar (Bottom) - Enhanced
+        local barH = ScreenScale(4)
+        local barPad = 2
         -- Bar Background
-        surface.SetDrawColor(0, 0, 0, 200)
-        surface.DrawRect(1, h - barH - 1, w - 2, barH)
+        surface.SetDrawColor(THEME.progress_bg)
+        draw.RoundedBox(2, barPad, h - barH - barPad, w - barPad * 2, barH, THEME.progress_bg)
         
-        -- Bar Fill (Faint White)
-        surface.SetDrawColor(255, 255, 255, 150)
-        surface.DrawRect(1, h - barH - 1, (w - 2) * progress, barH)
+        -- Bar Fill with accent color
+        surface.SetDrawColor(THEME.progress_fill)
+        draw.RoundedBox(2, barPad, h - barH - barPad, math.max((w - barPad * 2) * progress, 4), barH, THEME.progress_fill)
 
         -- Text Handling
         local nameColor = Color(235, 235, 235)
@@ -1359,11 +1466,17 @@ function PANEL:CreateTraitorMenuPanel()
         if self.TargetState == "Main" then
             progress = 1 - self.TransitionProgress
         end
-        surface.SetDrawColor(10, 10, 15, 150)
+        -- Darker background with subtle gradient
+        surface.SetDrawColor(5, 5, 10, 200)
         surface.DrawRect(0, 0, w, h)
+        -- Subtle vignette effect
+        local grad = surface.GetTextureID("vgui/gradient-d")
+        surface.SetTexture(grad)
+        surface.SetDrawColor(0, 0, 0, 100)
+        surface.DrawTexturedRect(0, 0, w, h)
     end
 
-    local outerMargin = math.max(ScreenScale(10), 10)
+    local outerMargin = math.max(ScreenScale(15), 15)
     local availableW = math.max(ScrW() - outerMargin * 2, 260)
     local topMargin = math.Clamp(ScreenScaleH(80), 24, ScrH() * 0.2)
     local bottomMargin = math.Clamp(ScreenScaleH(60), 20, ScrH() * 0.15)
@@ -1373,7 +1486,7 @@ function PANEL:CreateTraitorMenuPanel()
     local presetsW = math.Clamp(ScrW() * 0.54, 340, availableW)
     local presetsX = math.max((ScrW() - presetsW) * 0.5, outerMargin)
 
-    local gapW = math.Clamp(ScreenScale(12), 8, 20)
+    local gapW = math.Clamp(ScreenScale(16), 12, 24)
     local desiredInfoW = math.Clamp(ScrW() * 0.32, 240, ScrW() * 0.54)
     local desiredLoadoutW = math.Clamp(ScrW() * 0.5, 340, ScrW() * 0.74)
     local desiredTotalW = desiredInfoW + gapW + desiredLoadoutW
@@ -1397,7 +1510,7 @@ function PANEL:CreateTraitorMenuPanel()
     self.TraitorPresetsPanel:SetAlpha(0)
     self.TraitorPresetsPanel:SetVisible(false)
     self.TraitorPresetsPanel.Paint = function(pnl, w, h)
-        surface.SetDrawColor(10, 10, 15, 150)
+        surface.SetDrawColor(5, 5, 10, 200)
         surface.DrawRect(0, 0, w, h)
     end
     
@@ -1405,27 +1518,88 @@ function PANEL:CreateTraitorMenuPanel()
     leftPanel:SetPos(presetsX, listY)
     leftPanel:SetSize(presetsW, listH)
     leftPanel.Paint = function(pnl, w, h)
-        draw.RoundedBox(0, 0, 0, w, h, Color(10, 10, 10, 230))
-        surface.SetDrawColor(200, 200, 200, 150)
-        surface.DrawOutlinedRect(0, 0, w, h, 2)
+        -- Enhanced panel with gradient, glow, and decorative elements
+        -- Main background
+        surface.SetDrawColor(THEME.bg_panel)
+        draw.RoundedBox(8, 0, 0, w, h, THEME.bg_panel)
+        -- Inner gradient overlay
+        surface.SetDrawColor(THEME.gradient_top)
+        draw.RoundedBox(8, 0, 0, w, h * 0.3, THEME.gradient_top)
+        -- Border with glow
+        surface.SetDrawColor(THEME.border_bright)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
+        -- Top accent line with glow
+        surface.SetDrawColor(THEME.accent_red)
+        surface.DrawRect(6, 0, w - 12, 3)
+        surface.SetDrawColor(THEME.accent_red_glow)
+        surface.DrawRect(6, 3, w - 12, 2)
+        -- Corner decorations
+        local cornerSize = ScreenScale(12)
+        surface.SetDrawColor(THEME.accent_red)
+        -- Top-left corner
+        surface.DrawRect(0, 0, cornerSize, 2)
+        surface.DrawRect(0, 0, 2, cornerSize)
+        -- Top-right corner
+        surface.DrawRect(w - cornerSize, 0, cornerSize, 2)
+        surface.DrawRect(w - 2, 0, 2, cornerSize)
+        -- Bottom-left corner
+        surface.DrawRect(0, h - 2, cornerSize, 2)
+        surface.DrawRect(0, h - cornerSize, 2, cornerSize)
+        -- Bottom-right corner
+        surface.DrawRect(w - cornerSize, h - 2, cornerSize, 2)
+        surface.DrawRect(w - 2, h - cornerSize, 2, cornerSize)
     end
 
     local infoPanel = vgui.Create("DPanel", self.TraitorMenuPanel)
     infoPanel:SetPos(traitorX, listY)
     infoPanel:SetSize(infoW, listH)
     infoPanel.Paint = function(pnl, w, h)
-        draw.RoundedBox(0, 0, 0, w, h, Color(10, 10, 10, 230))
-        surface.SetDrawColor(200, 200, 200, 150)
-        surface.DrawOutlinedRect(0, 0, w, h, 2)
+        surface.SetDrawColor(THEME.bg_panel)
+        draw.RoundedBox(8, 0, 0, w, h, THEME.bg_panel)
+        surface.SetDrawColor(THEME.gradient_top)
+        draw.RoundedBox(8, 0, 0, w, h * 0.3, THEME.gradient_top)
+        surface.SetDrawColor(THEME.border_bright)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
+        surface.SetDrawColor(THEME.accent_red)
+        surface.DrawRect(6, 0, w - 12, 3)
+        surface.SetDrawColor(THEME.accent_red_glow)
+        surface.DrawRect(6, 3, w - 12, 2)
+        local cornerSize = ScreenScale(12)
+        surface.SetDrawColor(THEME.accent_red)
+        surface.DrawRect(0, 0, cornerSize, 2)
+        surface.DrawRect(0, 0, 2, cornerSize)
+        surface.DrawRect(w - cornerSize, 0, cornerSize, 2)
+        surface.DrawRect(w - 2, 0, 2, cornerSize)
+        surface.DrawRect(0, h - 2, cornerSize, 2)
+        surface.DrawRect(0, h - cornerSize, 2, cornerSize)
+        surface.DrawRect(w - cornerSize, h - 2, cornerSize, 2)
+        surface.DrawRect(w - 2, h - cornerSize, 2, cornerSize)
     end
 
     local rightPanel = vgui.Create("DPanel", self.TraitorMenuPanel)
     rightPanel:SetPos(traitorX + infoW + gapW, listY)
     rightPanel:SetSize(loadoutW, listH)
     rightPanel.Paint = function(pnl, w, h)
-        draw.RoundedBox(0, 0, 0, w, h, Color(10, 10, 10, 230))
-        surface.SetDrawColor(200, 200, 200, 150)
-        surface.DrawOutlinedRect(0, 0, w, h, 2)
+        surface.SetDrawColor(THEME.bg_panel)
+        draw.RoundedBox(8, 0, 0, w, h, THEME.bg_panel)
+        surface.SetDrawColor(THEME.gradient_top)
+        draw.RoundedBox(8, 0, 0, w, h * 0.3, THEME.gradient_top)
+        surface.SetDrawColor(THEME.border_bright)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
+        surface.SetDrawColor(THEME.accent_red)
+        surface.DrawRect(6, 0, w - 12, 3)
+        surface.SetDrawColor(THEME.accent_red_glow)
+        surface.DrawRect(6, 3, w - 12, 2)
+        local cornerSize = ScreenScale(12)
+        surface.SetDrawColor(THEME.accent_red)
+        surface.DrawRect(0, 0, cornerSize, 2)
+        surface.DrawRect(0, 0, 2, cornerSize)
+        surface.DrawRect(w - cornerSize, 0, cornerSize, 2)
+        surface.DrawRect(w - 2, 0, 2, cornerSize)
+        surface.DrawRect(0, h - 2, cornerSize, 2)
+        surface.DrawRect(0, h - cornerSize, 2, cornerSize)
+        surface.DrawRect(w - cornerSize, h - 2, cornerSize, 2)
+        surface.DrawRect(w - 2, h - cornerSize, 2, cornerSize)
     end
 
     -- State
@@ -1589,28 +1763,34 @@ function PANEL:CreateTraitorMenuPanel()
 
     local infoContent = vgui.Create("DPanel", infoPanel)
     infoContent:Dock(FILL)
+    infoContent:DockMargin(ScreenScale(10), ScreenScale(10), ScreenScale(10), ScreenScale(10))
     infoContent.Paint = function() end
 
     local lblInfoTitle = vgui.Create("DLabel", infoContent)
     lblInfoTitle:Dock(TOP)
     lblInfoTitle:SetText("SELECTED ITEM")
     lblInfoTitle:SetFont("ZCity_Veteran")
-    lblInfoTitle:SetTextColor(Color(255, 255, 255))
+    lblInfoTitle:SetTextColor(THEME.accent_red)
     lblInfoTitle:SetContentAlignment(5)
     lblInfoTitle:SizeToContentsY()
-    lblInfoTitle:DockMargin(0, ScreenScale(10), 0, ScreenScale(5))
+    lblInfoTitle:DockMargin(0, ScreenScale(8), 0, ScreenScale(8))
 
     local previewIconMat = nil
     local previewImagePanel = vgui.Create("DPanel", infoContent)
     previewImagePanel:Dock(TOP)
     previewImagePanel:SetTall(math.Clamp(listH * 0.36, ScreenScale(120), ScreenScale(220)))
-    previewImagePanel:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(10))
+    previewImagePanel:DockMargin(0, 0, 0, ScreenScale(10))
     previewImagePanel.Paint = function(pnl, w, h)
-        draw.RoundedBox(0, 0, 0, w, h, Color(20, 20, 20, 220))
-        surface.SetDrawColor(200, 200, 200, 80)
+        -- Enhanced preview panel with border and glow
+        surface.SetDrawColor(THEME.bg_card)
+        draw.RoundedBox(6, 0, 0, w, h, THEME.bg_card)
+        surface.SetDrawColor(THEME.border)
         surface.DrawOutlinedRect(0, 0, w, h, 1)
+        -- Inner shadow
+        surface.SetDrawColor(0, 0, 0, 50)
+        draw.RoundedBox(6, 1, 1, w - 2, h - 2, Color(0, 0, 0, 50))
         if previewIconMat then
-            local pad = ScreenScale(4)
+            local pad = ScreenScale(8)
             local drawW = w - pad * 2
             local drawH = h - pad * 2
             local matW = math.max(previewIconMat:Width(), 1)
@@ -1624,49 +1804,57 @@ function PANEL:CreateTraitorMenuPanel()
             surface.SetMaterial(previewIconMat)
             surface.DrawTexturedRect(iconX, iconY, iconW, iconH)
         else
-            draw.SimpleText("?", "ZCity_Veteran", w / 2, h / 2, Color(220, 220, 220), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+            draw.SimpleText("?", "ZCity_Veteran", w / 2, h / 2, THEME.text_dim, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
         end
     end
 
     local lblPreviewName = vgui.Create("DLabel", infoContent)
     lblPreviewName:Dock(TOP)
-    lblPreviewName:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(2))
+    lblPreviewName:DockMargin(0, 0, 0, ScreenScale(2))
     lblPreviewName:SetFont("ZCity_Veteran")
-    lblPreviewName:SetTextColor(Color(255, 255, 255))
+    lblPreviewName:SetTextColor(THEME.text_primary)
     lblPreviewName:SetContentAlignment(5)
     lblPreviewName:SetText("None")
     lblPreviewName:SizeToContentsY()
 
     local lblPreviewCost = vgui.Create("DLabel", infoContent)
     lblPreviewCost:Dock(TOP)
-    lblPreviewCost:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(8))
+    lblPreviewCost:DockMargin(0, 0, 0, ScreenScale(8))
     lblPreviewCost:SetFont("ZCity_Veteran")
-    lblPreviewCost:SetTextColor(Color(200, 200, 200))
+    lblPreviewCost:SetTextColor(THEME.accent_red)
     lblPreviewCost:SetContentAlignment(5)
     lblPreviewCost:SetText("")
     lblPreviewCost:SizeToContentsY()
 
     local lblPreviewDescTitle = vgui.Create("DLabel", infoContent)
     lblPreviewDescTitle:Dock(TOP)
-    lblPreviewDescTitle:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(4))
+    lblPreviewDescTitle:DockMargin(0, 0, 0, ScreenScale(4))
     lblPreviewDescTitle:SetFont("ZCity_Veteran")
-    lblPreviewDescTitle:SetTextColor(Color(220, 220, 220))
+    lblPreviewDescTitle:SetTextColor(THEME.text_secondary)
     lblPreviewDescTitle:SetContentAlignment(5)
     lblPreviewDescTitle:SetText("DESCRIPTION")
     lblPreviewDescTitle:SizeToContentsY()
 
     local previewDescScroll = vgui.Create("DScrollPanel", infoContent)
     previewDescScroll:Dock(FILL)
-    previewDescScroll:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(10))
+    previewDescScroll:DockMargin(0, 0, 0, 0)
     local dsbar = previewDescScroll:GetVBar()
+    dsbar:SetWide(ScreenScale(5))
     dsbar:SetHideButtons(true)
-    function dsbar:Paint(w, h) draw.RoundedBox(0, 0, 0, w, h, Color(0, 0, 0, 80)) end
-    function dsbar.btnGrip:Paint(w, h) draw.RoundedBox(0, 0, 0, w, h, Color(200, 200, 200, 130)) end
+    function dsbar:Paint(w, h)
+        surface.SetDrawColor(THEME.scrollbar_bg)
+        surface.DrawRect(0, 0, w, h)
+    end
+    function dsbar.btnGrip:Paint(w, h)
+        local col = dsbar.btnGrip:IsHovered() and THEME.scrollbar_grip_hover or THEME.scrollbar_grip
+        surface.SetDrawColor(col)
+        draw.RoundedBox(2, 0, 0, w, h, col)
+    end
 
     local lblPreviewDesc = vgui.Create("DLabel", previewDescScroll)
     lblPreviewDesc:Dock(TOP)
     lblPreviewDesc:SetFont("ZCity_Veteran")
-    lblPreviewDesc:SetTextColor(Color(200, 200, 200))
+    lblPreviewDesc:SetTextColor(THEME.text_secondary)
     lblPreviewDesc:SetWrap(true)
     lblPreviewDesc:SetAutoStretchVertical(true)
     lblPreviewDesc:SetText("None")
@@ -1732,22 +1920,45 @@ function PANEL:CreateTraitorMenuPanel()
     -- === LEFT PANEL: PRESETS ===
     local presetsBottomPanel = vgui.Create("DPanel", leftPanel)
     presetsBottomPanel:Dock(BOTTOM)
-    presetsBottomPanel:SetTall(ScreenScale(30))
-    presetsBottomPanel.Paint = function() end
+    presetsBottomPanel:SetTall(ScreenScale(36))
+    presetsBottomPanel:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(10))
+    presetsBottomPanel.Paint = function(s, w, h)
+        surface.SetDrawColor(THEME.border)
+        surface.DrawRect(0, 0, w, 1)
+    end
 
     local btnPresetsReturn = vgui.Create("DButton", presetsBottomPanel)
     btnPresetsReturn:Dock(RIGHT)
-    btnPresetsReturn:DockMargin(0, ScreenScale(5), ScreenScale(10), ScreenScale(5))
+    btnPresetsReturn:DockMargin(0, ScreenScale(6), ScreenScale(10), ScreenScale(6))
     btnPresetsReturn:SetText("RETURN")
     btnPresetsReturn:SetFont("ZCity_Veteran")
-    btnPresetsReturn:SetTextColor(Color(255, 255, 255))
+    btnPresetsReturn:SetTextColor(THEME.text_primary)
     btnPresetsReturn:SizeToContentsX()
-    btnPresetsReturn:SetWide(btnPresetsReturn:GetWide() + ScreenScale(20))
+    btnPresetsReturn:SetWide(btnPresetsReturn:GetWide() + ScreenScale(24))
+    btnPresetsReturn.HoverLerp = 0
     btnPresetsReturn.Paint = function(s, w, h)
-        local bgColor = s:IsHovered() and Color(150, 150, 150, 150) or Color(50, 50, 50, 150)
-        draw.RoundedBox(0, 0, 0, w, h, bgColor)
-        surface.SetDrawColor(200, 200, 200, 100)
-        surface.DrawOutlinedRect(0, 0, w, h)
+        s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+        local v = s.HoverLerp
+        local bgColor = Color(
+            Lerp(v, 40, 200),
+            Lerp(v, 40, 60),
+            Lerp(v, 50, 60),
+            Lerp(v, 180, 220)
+        )
+        draw.RoundedBox(4, 0, 0, w, h, bgColor)
+        -- Glow effect on hover
+        if v > 0.01 then
+            surface.SetDrawColor(THEME.accent_red_glow)
+            draw.RoundedBox(4, -v * 2, -v * 2, w + v * 4, h + v * 4, THEME.accent_red_glow)
+        end
+        -- Shine sweep effect
+        if v > 0.01 then
+            local sweepX = (CurTime() * 200) % (w + 40) - 20
+            surface.SetDrawColor(255, 255, 255, v * 30)
+            surface.DrawRect(sweepX, 0, 20, h)
+        end
+        surface.SetDrawColor(THEME.border_bright)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
     end
     btnPresetsReturn.DoClick = function()
         sound.PlayFile("sound/press.mp3", "noblock", function(station) if IsValid(station) then station:Play() end end)
@@ -1756,17 +1967,34 @@ function PANEL:CreateTraitorMenuPanel()
 
     local btnGoToLoadout = vgui.Create("DButton", presetsBottomPanel)
     btnGoToLoadout:Dock(RIGHT)
-    btnGoToLoadout:DockMargin(0, ScreenScale(5), ScreenScale(10), ScreenScale(5))
+    btnGoToLoadout:DockMargin(0, ScreenScale(6), ScreenScale(10), ScreenScale(6))
     btnGoToLoadout:SetText("LOADOUT")
     btnGoToLoadout:SetFont("ZCity_Veteran")
-    btnGoToLoadout:SetTextColor(Color(255, 255, 255))
+    btnGoToLoadout:SetTextColor(THEME.text_primary)
     btnGoToLoadout:SizeToContentsX()
-    btnGoToLoadout:SetWide(btnGoToLoadout:GetWide() + ScreenScale(20))
+    btnGoToLoadout:SetWide(btnGoToLoadout:GetWide() + ScreenScale(24))
+    btnGoToLoadout.HoverLerp = 0
     btnGoToLoadout.Paint = function(s, w, h)
-        local bgColor = s:IsHovered() and Color(150, 150, 150, 150) or Color(50, 50, 50, 150)
-        draw.RoundedBox(0, 0, 0, w, h, bgColor)
-        surface.SetDrawColor(200, 200, 200, 100)
-        surface.DrawOutlinedRect(0, 0, w, h)
+        s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+        local v = s.HoverLerp
+        local bgColor = Color(
+            Lerp(v, 40, 200),
+            Lerp(v, 40, 60),
+            Lerp(v, 50, 60),
+            Lerp(v, 180, 220)
+        )
+        draw.RoundedBox(4, 0, 0, w, h, bgColor)
+        if v > 0.01 then
+            surface.SetDrawColor(THEME.accent_red_glow)
+            draw.RoundedBox(4, -v * 2, -v * 2, w + v * 4, h + v * 4, THEME.accent_red_glow)
+        end
+        if v > 0.01 then
+            local sweepX = (CurTime() * 200) % (w + 40) - 20
+            surface.SetDrawColor(255, 255, 255, v * 30)
+            surface.DrawRect(sweepX, 0, 20, h)
+        end
+        surface.SetDrawColor(THEME.border_bright)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
     end
     btnGoToLoadout.DoClick = function()
         if self.LastSwitchTime and CurTime() - self.LastSwitchTime < 1 then return end
@@ -1779,18 +2007,26 @@ function PANEL:CreateTraitorMenuPanel()
     lblTitlePresets:Dock(TOP)
     lblTitlePresets:SetText("TRAITOR PRESETS")
     lblTitlePresets:SetFont("ZCity_Veteran")
-    lblTitlePresets:SetTextColor(Color(255, 255, 255))
+    lblTitlePresets:SetTextColor(THEME.accent_red)
     lblTitlePresets:SetContentAlignment(5)
     lblTitlePresets:SizeToContentsY()
-    lblTitlePresets:DockMargin(0, ScreenScale(10), 0, ScreenScale(5))
+    lblTitlePresets:DockMargin(0, ScreenScale(12), 0, ScreenScale(8))
 
     local presetsScroll = vgui.Create("DScrollPanel", leftPanel)
     presetsScroll:Dock(FILL)
-    presetsScroll:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(10))
+    presetsScroll:DockMargin(ScreenScale(12), 0, ScreenScale(12), ScreenScale(12))
     local psbar = presetsScroll:GetVBar()
+    psbar:SetWide(ScreenScale(5))
     psbar:SetHideButtons(true)
-    function psbar:Paint(w, h) draw.RoundedBox(0, 0, 0, w, h, Color(0, 0, 0, 80)) end
-    function psbar.btnGrip:Paint(w, h) draw.RoundedBox(0, 0, 0, w, h, Color(200, 200, 200, 150)) end
+    function psbar:Paint(w, h)
+        surface.SetDrawColor(THEME.scrollbar_bg)
+        surface.DrawRect(0, 0, w, h)
+    end
+    function psbar.btnGrip:Paint(w, h)
+        local col = psbar.btnGrip:IsHovered() and THEME.scrollbar_grip_hover or THEME.scrollbar_grip
+        surface.SetDrawColor(col)
+        draw.RoundedBox(2, 0, 0, w, h, col)
+    end
 
     local function LoadPresets()
         local data = file.Read("meleecity_traitor_presets.txt", "DATA")
@@ -1812,11 +2048,29 @@ function PANEL:CreateTraitorMenuPanel()
         btnCreate:SetText("+ CREATE NEW PRESET")
         btnCreate:SetFont("ZCity_Veteran")
         btnCreate:SetTextColor(Color(255, 255, 255))
+        btnCreate.HoverLerp = 0
         btnCreate.Paint = function(s, w, h)
-            local bgColor = s:IsHovered() and Color(150, 150, 150, 150) or Color(30, 30, 30, 150)
-            draw.RoundedBox(0, 0, 0, w, h, bgColor)
-            surface.SetDrawColor(200, 200, 200, 50)
-            surface.DrawOutlinedRect(0, 0, w, h)
+            s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+            local v = s.HoverLerp
+            local bgColor = LerpColor(v, Color(25, 25, 35, 180), Color(60, 60, 70, 200))
+            draw.RoundedBox(4, 0, 0, w, h, bgColor)
+            if v > 0.01 then
+                surface.SetDrawColor(THEME.accent_red, v * 50)
+                surface.DrawRect(0, 0, w, h)
+                surface.SetDrawColor(THEME.accent_red_glow)
+                draw.RoundedBox(4, -v * 1.5, -v * 1.5, w + v * 3, h + v * 3, THEME.accent_red_glow)
+                local sweepX = (CurTime() * 200) % (w + 40) - 20
+                surface.SetDrawColor(255, 255, 255, v * 25)
+                surface.DrawRect(sweepX, 0, 20, h)
+            end
+            surface.SetDrawColor(THEME.border)
+            surface.DrawOutlinedRect(0, 0, w, h, 1)
+            if v < 0.99 then
+                for i = 0, w, 8 do
+                    surface.SetDrawColor(255, 255, 255, 30)
+                    surface.DrawRect(i, h/2 - 0.5, 4, 1)
+                end
+            end
         end
         btnCreate.DoClick = function()
             Derma_StringRequest("New Preset", "Enter a name for the new preset:", "Preset " .. (#presets + 1), function(text)
@@ -1833,9 +2087,14 @@ function PANEL:CreateTraitorMenuPanel()
             pnl:SetTall(ScreenScale(25))
             pnl:DockMargin(0, 0, 0, ScreenScale(2))
             pnl.Paint = function(s, w, h)
-                draw.RoundedBox(0, 0, 0, w, h, Color(30, 30, 30, 150))
-                surface.SetDrawColor(200, 200, 200, 50)
-                surface.DrawOutlinedRect(0, 0, w, h)
+                surface.SetDrawColor(THEME.bg_card)
+                draw.RoundedBox(4, 0, 0, w, h, THEME.bg_card)
+                if s:IsHovered() then
+                    surface.SetDrawColor(THEME.hover_bg)
+                    surface.DrawRect(0, 0, w, h)
+                end
+                surface.SetDrawColor(THEME.border)
+                surface.DrawOutlinedRect(0, 0, w, h, 1)
             end
 
             local lblName = vgui.Create("DLabel", pnl)
@@ -1848,12 +2107,19 @@ function PANEL:CreateTraitorMenuPanel()
 
             local btnDelete = vgui.Create("DButton", pnl)
             btnDelete:Dock(RIGHT)
-            btnDelete:SetWide(ScreenScale(20))
+            btnDelete:SetWide(ScreenScale(24))
             btnDelete:SetText("X")
             btnDelete:SetFont("ZCity_Veteran")
             btnDelete:SetTextColor(Color(255, 100, 100))
+            btnDelete.HoverLerp = 0
             btnDelete.Paint = function(s, w, h)
-                if s:IsHovered() then draw.RoundedBox(0, 0, 0, w, h, Color(255, 0, 0, 50)) end
+                s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+                local v = s.HoverLerp
+                if v > 0.01 then
+                    draw.RoundedBox(3, 0, 0, w, h, Color(255, 0, 0, v * 60))
+                    surface.SetDrawColor(255, 50, 50, v * 40)
+                    draw.RoundedBox(3, -v, -v, w + v * 2, h + v * 2, Color(255, 50, 50, v * 40))
+                end
             end
             btnDelete.DoClick = function()
                 table.remove(presets, i)
@@ -1869,8 +2135,18 @@ function PANEL:CreateTraitorMenuPanel()
             btnLoad:SetTextColor(Color(200, 255, 200))
             btnLoad:SizeToContentsX()
             btnLoad:SetWide(btnLoad:GetWide() + ScreenScale(10))
+            btnLoad.HoverLerp = 0
             btnLoad.Paint = function(s, w, h)
-                if s:IsHovered() then draw.RoundedBox(0, 0, 0, w, h, Color(0, 255, 0, 50)) end
+                s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+                local v = s.HoverLerp
+                if v > 0.01 then
+                    draw.RoundedBox(3, 0, 0, w, h, Color(0, 255, 0, v * 50))
+                    surface.SetDrawColor(50, 255, 50, v * 30)
+                    draw.RoundedBox(3, -v, -v, w + v * 2, h + v * 2, Color(50, 255, 50, v * 30))
+                    local sweepX = (CurTime() * 200) % (w + 40) - 20
+                    surface.SetDrawColor(255, 255, 255, v * 20)
+                    surface.DrawRect(sweepX, 0, 20, h)
+                end
             end
             btnLoad.DoClick = function()
                 currentLoadout = SanitizeLoadout(table.Copy(preset.loadout or {}))
@@ -1886,32 +2162,41 @@ function PANEL:CreateTraitorMenuPanel()
     -- === RIGHT PANEL: LOADOUT ===
     local rightContentContainer = vgui.Create("DPanel", rightPanel)
     rightContentContainer:Dock(FILL)
+    rightContentContainer:DockMargin(ScreenScale(10), ScreenScale(10), ScreenScale(10), ScreenScale(10))
     rightContentContainer.Paint = function() end
 
     local lblTitleLoadout = vgui.Create("DLabel", rightContentContainer)
     lblTitleLoadout:Dock(TOP)
     lblTitleLoadout:SetText("TRAITOR LOADOUT")
     lblTitleLoadout:SetFont("ZCity_Veteran")
-    lblTitleLoadout:SetTextColor(Color(255, 255, 255))
+    lblTitleLoadout:SetTextColor(THEME.accent_red)
     lblTitleLoadout:SetContentAlignment(5)
     lblTitleLoadout:SizeToContentsY()
-    lblTitleLoadout:DockMargin(0, ScreenScale(10), 0, ScreenScale(5))
+    lblTitleLoadout:DockMargin(0, ScreenScale(8), 0, ScreenScale(4))
 
     local lblPoints = vgui.Create("DLabel", rightContentContainer)
     lblPoints:Dock(TOP)
     lblPoints:SetFont("ZCity_Veteran")
-    lblPoints:SetTextColor(Color(200, 200, 200))
+    lblPoints:SetTextColor(THEME.text_secondary)
     lblPoints:SetContentAlignment(5)
     lblPoints:SizeToContentsY()
-    lblPoints:DockMargin(0, 0, 0, ScreenScale(10))
+    lblPoints:DockMargin(0, 0, 0, ScreenScale(8))
 
     local loadoutScroll = vgui.Create("DScrollPanel", rightContentContainer)
     loadoutScroll:Dock(FILL)
-    loadoutScroll:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(10))
+    loadoutScroll:DockMargin(0, 0, 0, 0)
     local lsbar = loadoutScroll:GetVBar()
+    lsbar:SetWide(ScreenScale(5))
     lsbar:SetHideButtons(true)
-    function lsbar:Paint(w, h) draw.RoundedBox(0, 0, 0, w, h, Color(0, 0, 0, 80)) end
-    function lsbar.btnGrip:Paint(w, h) draw.RoundedBox(0, 0, 0, w, h, Color(200, 200, 200, 150)) end
+    function lsbar:Paint(w, h)
+        surface.SetDrawColor(THEME.scrollbar_bg)
+        surface.DrawRect(0, 0, w, h)
+    end
+    function lsbar.btnGrip:Paint(w, h)
+        local col = lsbar.btnGrip:IsHovered() and THEME.scrollbar_grip_hover or THEME.scrollbar_grip
+        surface.SetDrawColor(col)
+        draw.RoundedBox(2, 0, 0, w, h, col)
+    end
 
     RefreshLoadoutUI = function()
         loadoutScroll:Clear()
@@ -1932,19 +2217,28 @@ function PANEL:CreateTraitorMenuPanel()
 
         lblPoints:SetText("Points: " .. currentPoints .. " / " .. maxPoints)
         if currentPoints > maxPoints then
-            lblPoints:SetTextColor(Color(255, 100, 100))
+            lblPoints:SetTextColor(THEME.accent_red)
         else
-            lblPoints:SetTextColor(Color(200, 200, 200))
+            lblPoints:SetTextColor(THEME.text_secondary)
         end
 
         local function AddCategory(title)
-            local catLbl = vgui.Create("DLabel", loadoutScroll)
+            local catContainer = vgui.Create("DPanel", loadoutScroll)
+            catContainer:Dock(TOP)
+            catContainer:SetTall(ScreenScale(28))
+            catContainer:DockMargin(0, ScreenScale(8), 0, ScreenScale(4))
+            catContainer.Paint = function(s, w, h)
+                surface.SetDrawColor(255, 255, 255, 6)
+                surface.DrawRect(0, 0, w, h)
+                surface.SetDrawColor(THEME.accent_red)
+                surface.DrawRect(0, 2, 3, h - 4)
+            end
+            local catLbl = vgui.Create("DLabel", catContainer)
             catLbl:SetText(title)
             catLbl:SetFont("ZCity_Veteran")
-            catLbl:SetTextColor(Color(220, 220, 220))
-            catLbl:Dock(TOP)
-            catLbl:DockMargin(0, ScreenScale(5), 0, ScreenScale(2))
-            catLbl:SizeToContentsY()
+            catLbl:SetTextColor(THEME.accent_red)
+            catLbl:SetPos(ScreenScale(12), ScreenScale(4))
+            catLbl:SizeToContents()
         end
 
         AddCategory("SKILLSETS")
@@ -1952,19 +2246,40 @@ function PANEL:CreateTraitorMenuPanel()
             local info = Skillsets[id]
             local btn = vgui.Create("DButton", loadoutScroll)
             btn:Dock(TOP)
-            btn:SetTall(ScreenScale(20))
-            btn:DockMargin(0, 0, 0, ScreenScale(2))
+            btn:SetTall(ScreenScale(24))
+            btn:DockMargin(0, 0, 0, ScreenScale(3))
             btn:SetText("")
+            btn.HoverLerp = 0
             btn.Paint = function(s, w, h)
+                s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, (s:IsHovered() and not (currentLoadout.skillset == id)) and 1 or 0)
+                local v = s.HoverLerp
                 local isSelected = (currentLoadout.skillset == id)
-                local bgColor = isSelected and Color(100, 100, 100, 150) or Color(30, 30, 30, 150)
-                if s:IsHovered() then bgColor = Color(150, 150, 150, 150) end
-                draw.RoundedBox(0, 0, 0, w, h, bgColor)
-                surface.SetDrawColor(200, 200, 200, 50)
-                surface.DrawOutlinedRect(0, 0, w, h)
-                draw.SimpleText(info.name .. " (" .. info.cost .. " pts)", "ZCity_Veteran", ScreenScale(5), h/2, Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                local bgColor = isSelected and THEME.selected_bg or THEME.bg_card
+                if v > 0.01 and not isSelected then
+                    bgColor = LerpColor(v, THEME.bg_card, THEME.hover_bg)
+                end
+                draw.RoundedBox(4, 0, 0, w, h, bgColor)
+                -- Hover glow effect
+                if v > 0.01 and not isSelected then
+                    surface.SetDrawColor(THEME.accent_red_glow)
+                    draw.RoundedBox(4, -v * 1.5, -v * 1.5, w + v * 3, h + v * 3, THEME.accent_red_glow)
+                    -- Shine sweep
+                    local sweepX = (CurTime() * 200) % (w + 40) - 20
+                    surface.SetDrawColor(255, 255, 255, v * 20)
+                    surface.DrawRect(sweepX, 0, 20, h)
+                end
                 if isSelected then
-                    draw.SimpleText("+", "ZCity_Veteran", w - ScreenScale(5), h / 2, Color(255, 70, 70), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+                    surface.SetDrawColor(THEME.selected_border)
+                    surface.DrawOutlinedRect(0, 0, w, h, 1)
+                    surface.SetDrawColor(THEME.accent_red)
+                    surface.DrawRect(0, 2, 3, h - 4)
+                else
+                    surface.SetDrawColor(THEME.border)
+                    surface.DrawOutlinedRect(0, 0, w, h, 1)
+                end
+                draw.SimpleText(info.name .. " (" .. info.cost .. " pts)", "ZCity_Veteran", ScreenScale(10), h/2, isSelected and THEME.accent_white or THEME.text_primary, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                if isSelected then
+                    draw.SimpleText("✓", "ZCity_Veteran", w - ScreenScale(10), h / 2, THEME.accent_red, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
                 end
             end
             btn.DoClick = function()
@@ -1986,23 +2301,44 @@ function PANEL:CreateTraitorMenuPanel()
             local info = TraitorItems[id]
             local btn = vgui.Create("DButton", loadoutScroll)
             btn:Dock(TOP)
-            btn:SetTall(ScreenScale(20))
-            btn:DockMargin(0, 0, 0, ScreenScale(2))
+            btn:SetTall(ScreenScale(24))
+            btn:DockMargin(0, 0, 0, ScreenScale(3))
             btn:SetText("")
+            btn.HoverLerp = 0
             btn.Paint = function(s, w, h)
+                s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, (s:IsHovered() and not table.HasValue(currentLoadout.weapons, id) and not HasWeaponConflict(currentLoadout.weapons, id)) and 1 or 0)
+                local v = s.HoverLerp
                 local isSelected = table.HasValue(currentLoadout.weapons, id)
                 local isDisabled = not isSelected and HasWeaponConflict(currentLoadout.weapons, id)
-                local bgColor = isSelected and Color(100, 100, 100, 150) or Color(30, 30, 30, 150)
-                if s:IsHovered() and not isDisabled then bgColor = Color(150, 150, 150, 150) end
-                draw.RoundedBox(0, 0, 0, w, h, bgColor)
-                surface.SetDrawColor(200, 200, 200, 50)
-                surface.DrawOutlinedRect(0, 0, w, h)
-                draw.SimpleText(info.name .. " (" .. info.cost .. " pts)", "ZCity_Veteran", ScreenScale(5), h/2, isDisabled and Color(160, 160, 160) or Color(255, 255, 255), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                local bgColor = isSelected and THEME.selected_bg or THEME.bg_card
+                if v > 0.01 and not isSelected and not isDisabled then
+                    bgColor = LerpColor(v, THEME.bg_card, THEME.hover_bg)
+                end
+                draw.RoundedBox(4, 0, 0, w, h, bgColor)
+                -- Hover glow effect
+                if v > 0.01 and not isSelected and not isDisabled then
+                    surface.SetDrawColor(THEME.accent_red_glow)
+                    draw.RoundedBox(4, -v * 1.5, -v * 1.5, w + v * 3, h + v * 3, THEME.accent_red_glow)
+                    local sweepX = (CurTime() * 200) % (w + 40) - 20
+                    surface.SetDrawColor(255, 255, 255, v * 20)
+                    surface.DrawRect(sweepX, 0, 20, h)
+                end
                 if isDisabled then
-                    draw.RoundedBox(0, 0, 0, w, h, Color(0, 0, 0, 190))
+                    surface.SetDrawColor(0, 0, 0, 150)
+                    draw.RoundedBox(4, 0, 0, w, h, Color(0, 0, 0, 150))
                 end
                 if isSelected then
-                    draw.SimpleText("+", "ZCity_Veteran", w - ScreenScale(5), h / 2, Color(255, 70, 70), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+                    surface.SetDrawColor(THEME.selected_border)
+                    surface.DrawOutlinedRect(0, 0, w, h, 1)
+                    surface.SetDrawColor(THEME.accent_red)
+                    surface.DrawRect(0, 2, 3, h - 4)
+                else
+                    surface.SetDrawColor(THEME.border)
+                    surface.DrawOutlinedRect(0, 0, w, h, 1)
+                end
+                draw.SimpleText(info.name .. " (" .. info.cost .. " pts)", "ZCity_Veteran", ScreenScale(8), h/2, isDisabled and THEME.text_dim or THEME.text_primary, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                if isSelected then
+                    draw.SimpleText("✓", "ZCity_Veteran", w - ScreenScale(8), h / 2, THEME.accent_red, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
                 end
             end
             btn.DoRightClick = function()
@@ -2048,16 +2384,33 @@ function PANEL:CreateTraitorMenuPanel()
                         addonBtn:SetTall(ScreenScale(18))
                         addonBtn:DockMargin(ScreenScale(10), 0, 0, ScreenScale(2))
                         addonBtn:SetText("")
+                        addonBtn.HoverLerp = 0
                         addonBtn.Paint = function(s, w, h)
+                            s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, (s:IsHovered() and not table.HasValue(currentLoadout.weapons, addonId)) and 1 or 0)
+                            local v = s.HoverLerp
                             local isSelected = table.HasValue(currentLoadout.weapons, addonId)
-                            local bgColor = isSelected and Color(100, 100, 100, 150) or Color(25, 25, 25, 150)
-                            if s:IsHovered() then bgColor = Color(140, 140, 140, 150) end
-                            draw.RoundedBox(0, 0, 0, w, h, bgColor)
-                            surface.SetDrawColor(200, 200, 200, 40)
-                            surface.DrawOutlinedRect(0, 0, w, h)
-                            draw.SimpleText("↳ " .. addonInfo.name .. " (" .. addonInfo.cost .. " pts)", "ZCity_Veteran", ScreenScale(5), h / 2, Color(235, 235, 235), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                            local bgColor = isSelected and THEME.selected_bg or Color(20, 20, 28, 180)
+                            if v > 0.01 and not isSelected then
+                                bgColor = LerpColor(v, Color(20, 20, 28, 180), THEME.hover_bg)
+                            end
+                            draw.RoundedBox(4, 0, 0, w, h, bgColor)
+                            if v > 0.01 and not isSelected then
+                                surface.SetDrawColor(THEME.accent_red_glow)
+                                draw.RoundedBox(4, -v, -v, w + v * 2, h + v * 2, THEME.accent_red_glow)
+                                local sweepX = (CurTime() * 200) % (w + 40) - 20
+                                surface.SetDrawColor(255, 255, 255, v * 15)
+                                surface.DrawRect(sweepX, 0, 20, h)
+                            end
                             if isSelected then
-                                draw.SimpleText("+", "ZCity_Veteran", w - ScreenScale(5), h / 2, Color(255, 70, 70), TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+                                surface.SetDrawColor(THEME.selected_border)
+                                surface.DrawOutlinedRect(0, 0, w, h, 1)
+                            else
+                                surface.SetDrawColor(THEME.border)
+                                surface.DrawOutlinedRect(0, 0, w, h, 1)
+                            end
+                            draw.SimpleText("↳ " .. addonInfo.name .. " (" .. addonInfo.cost .. " pts)", "ZCity_Veteran", ScreenScale(8), h / 2, isSelected and THEME.text_primary or THEME.text_secondary, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+                            if isSelected then
+                                draw.SimpleText("✓", "ZCity_Veteran", w - ScreenScale(8), h / 2, THEME.accent_red, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
                             end
                         end
                         addonBtn.DoClick = function()
@@ -2088,22 +2441,36 @@ function PANEL:CreateTraitorMenuPanel()
 
     local bottomPanel = vgui.Create("DPanel", rightPanel)
     bottomPanel:Dock(BOTTOM)
-    bottomPanel:SetTall(ScreenScale(30))
-    bottomPanel.Paint = function() end
+    bottomPanel:SetTall(ScreenScale(36))
+    bottomPanel:DockMargin(ScreenScale(10), 0, ScreenScale(10), ScreenScale(10))
+    bottomPanel.Paint = function(s, w, h)
+        surface.SetDrawColor(THEME.border)
+        surface.DrawRect(0, 0, w, 1)
+    end
 
     local btnReturn = vgui.Create("DButton", bottomPanel)
     btnReturn:Dock(RIGHT)
-    btnReturn:DockMargin(0, ScreenScale(5), ScreenScale(10), ScreenScale(5))
+    btnReturn:DockMargin(0, ScreenScale(6), ScreenScale(10), ScreenScale(6))
     btnReturn:SetText("RETURN")
     btnReturn:SetFont("ZCity_Veteran")
-    btnReturn:SetTextColor(Color(255, 255, 255))
+    btnReturn:SetTextColor(THEME.text_primary)
     btnReturn:SizeToContentsX()
-    btnReturn:SetWide(btnReturn:GetWide() + ScreenScale(20))
+    btnReturn:SetWide(btnReturn:GetWide() + ScreenScale(24))
+    btnReturn.HoverLerp = 0
     btnReturn.Paint = function(s, w, h)
-        local bgColor = s:IsHovered() and Color(150, 150, 150, 150) or Color(50, 50, 50, 150)
-        draw.RoundedBox(0, 0, 0, w, h, bgColor)
-        surface.SetDrawColor(200, 200, 200, 100)
-        surface.DrawOutlinedRect(0, 0, w, h)
+        s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+        local v = s.HoverLerp
+        local bgColor = Color(Lerp(v, 40, 200), Lerp(v, 40, 60), Lerp(v, 50, 60), Lerp(v, 200, 220))
+        draw.RoundedBox(4, 0, 0, w, h, bgColor)
+        if v > 0.01 then
+            surface.SetDrawColor(THEME.accent_red_glow)
+            draw.RoundedBox(4, -v * 2, -v * 2, w + v * 4, h + v * 4, THEME.accent_red_glow)
+            local sweepX = (CurTime() * 200) % (w + 40) - 20
+            surface.SetDrawColor(255, 255, 255, v * 30)
+            surface.DrawRect(sweepX, 0, 20, h)
+        end
+        surface.SetDrawColor(THEME.border_bright)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
     end
     btnReturn.DoClick = function()
         sound.PlayFile("sound/press.mp3", "noblock", function(station) if IsValid(station) then station:Play() end end)
@@ -2112,17 +2479,27 @@ function PANEL:CreateTraitorMenuPanel()
 
     local btnClear = vgui.Create("DButton", bottomPanel)
     btnClear:Dock(RIGHT)
-    btnClear:DockMargin(0, ScreenScale(5), ScreenScale(10), ScreenScale(5))
+    btnClear:DockMargin(0, ScreenScale(6), ScreenScale(10), ScreenScale(6))
     btnClear:SetText("CLEAR")
     btnClear:SetFont("ZCity_Veteran")
-    btnClear:SetTextColor(Color(255, 150, 150))
+    btnClear:SetTextColor(THEME.accent_red)
     btnClear:SizeToContentsX()
-    btnClear:SetWide(btnClear:GetWide() + ScreenScale(20))
+    btnClear:SetWide(btnClear:GetWide() + ScreenScale(24))
+    btnClear.HoverLerp = 0
     btnClear.Paint = function(s, w, h)
-        local bgColor = s:IsHovered() and Color(150, 50, 50, 150) or Color(50, 50, 50, 150)
-        draw.RoundedBox(0, 0, 0, w, h, bgColor)
-        surface.SetDrawColor(200, 100, 100, 100)
-        surface.DrawOutlinedRect(0, 0, w, h)
+        s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+        local v = s.HoverLerp
+        local bgColor = Color(Lerp(v, 50, 220), Lerp(v, 30, 40), Lerp(v, 30, 40), Lerp(v, 200, 220))
+        draw.RoundedBox(4, 0, 0, w, h, bgColor)
+        if v > 0.01 then
+            surface.SetDrawColor(255, 50, 50, v * 60)
+            draw.RoundedBox(4, -v * 2, -v * 2, w + v * 4, h + v * 4, Color(255, 50, 50, v * 60))
+            local sweepX = (CurTime() * 200) % (w + 40) - 20
+            surface.SetDrawColor(255, 100, 100, v * 30)
+            surface.DrawRect(sweepX, 0, 20, h)
+        end
+        surface.SetDrawColor(Color(200, 80, 80, 180))
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
     end
     btnClear.DoClick = function()
         currentLoadout.weapons = {}
@@ -2135,17 +2512,27 @@ function PANEL:CreateTraitorMenuPanel()
 
     local btnGoToPresets = vgui.Create("DButton", bottomPanel)
     btnGoToPresets:Dock(RIGHT)
-    btnGoToPresets:DockMargin(0, ScreenScale(5), ScreenScale(10), ScreenScale(5))
+    btnGoToPresets:DockMargin(0, ScreenScale(6), ScreenScale(10), ScreenScale(6))
     btnGoToPresets:SetText("PRESETS")
     btnGoToPresets:SetFont("ZCity_Veteran")
-    btnGoToPresets:SetTextColor(Color(255, 255, 255))
+    btnGoToPresets:SetTextColor(THEME.text_primary)
     btnGoToPresets:SizeToContentsX()
-    btnGoToPresets:SetWide(btnGoToPresets:GetWide() + ScreenScale(20))
+    btnGoToPresets:SetWide(btnGoToPresets:GetWide() + ScreenScale(24))
+    btnGoToPresets.HoverLerp = 0
     btnGoToPresets.Paint = function(s, w, h)
-        local bgColor = s:IsHovered() and Color(150, 150, 150, 150) or Color(50, 50, 50, 150)
-        draw.RoundedBox(0, 0, 0, w, h, bgColor)
-        surface.SetDrawColor(200, 200, 200, 100)
-        surface.DrawOutlinedRect(0, 0, w, h)
+        s.HoverLerp = Lerp(FrameTime() * 8, s.HoverLerp or 0, s:IsHovered() and 1 or 0)
+        local v = s.HoverLerp
+        local bgColor = Color(Lerp(v, 40, 200), Lerp(v, 40, 60), Lerp(v, 50, 60), Lerp(v, 200, 220))
+        draw.RoundedBox(4, 0, 0, w, h, bgColor)
+        if v > 0.01 then
+            surface.SetDrawColor(THEME.accent_red_glow)
+            draw.RoundedBox(4, -v * 2, -v * 2, w + v * 4, h + v * 4, THEME.accent_red_glow)
+            local sweepX = (CurTime() * 200) % (w + 40) - 20
+            surface.SetDrawColor(255, 255, 255, v * 30)
+            surface.DrawRect(sweepX, 0, 20, h)
+        end
+        surface.SetDrawColor(THEME.border_bright)
+        surface.DrawOutlinedRect(0, 0, w, h, 1)
     end
     btnGoToPresets.DoClick = function()
         if self.LastSwitchTime and CurTime() - self.LastSwitchTime < 1 then return end
@@ -2482,53 +2869,97 @@ function PANEL:Paint(w,h)
         surface.DrawRect(0, math.random(0, h), w, math.random(1, 2))
     end
     
-    -- Title Transition Logic
+    -- Enhanced Title with improved visibility and design
     local text1 = "meleecity: delicacy"
     
     surface.SetFont("ZC_MM_Title")
+    local titleW, titleH = surface.GetTextSize(text1)
     
-    -- Always Draw Main Title (No Transition)
+    -- Title alpha and color animation
     local time = CurTime()
-    local blink_chance = math.sin(time * 0.5)
-    local color_val = 0
-    if blink_chance > 0.8 then
-        local blink_speed = 20
-        color_val = (math.sin(time * blink_speed) + 1) / 2 * 255
+    local titleAlpha = 255
+    local titleColorR, titleColorG, titleColorB = 255, 255, 255
+    
+    -- Red pulse effect periodically
+    local pulseCycle = math.sin(time * 0.8)
+    if pulseCycle > 0.7 then
+        local intensity = (pulseCycle - 0.7) / 0.3
+        titleColorR = 255
+        titleColorG = math.Clamp(255 - intensity * 200, 55, 255)
+        titleColorB = math.Clamp(255 - intensity * 200, 55, 255)
     end
     
-    surface.SetTextColor(255, color_val, color_val, 255)
-    
-    local textShakeX = math.random(-10, 10) * 0.1
-    local textShakeY = math.random(-10, 10) * 0.1
-    if math.random() > 0.9 then
-        textShakeX = textShakeX + math.random(-3, 3)
-        textShakeY = textShakeY + math.random(-3, 3)
+    -- Title shake effect (subtle)
+    local textShakeX = math.sin(time * 1.5) * 0.5
+    local textShakeY = math.cos(time * 1.2) * 0.3
+    if math.random() > 0.95 then
+        textShakeX = textShakeX + math.random(-2, 2)
+        textShakeY = textShakeY + math.random(-1, 1)
     end
     
+    -- Title position with transition handling
+    local titleX = self.LogoX
     local titleY = self.LogoY
-    if self.TargetState == "Appearance" or (self.TargetState == "Main" and self.CurrentState == "Appearance") then
-        titleY = self.LogoY - ScrH() * progress
-    elseif self.TargetState == "TraitorMenu" or (self.TargetState == "Main" and self.CurrentState == "TraitorMenu") or self.TargetState == "TraitorPresets" or (self.TargetState == "Main" and self.CurrentState == "TraitorPresets") then
-        titleY = self.LogoY + ScrH() * progress
-        
-        if (self.TargetState == "TraitorPresets" and self.CurrentState == "TraitorMenu") or (self.TargetState == "TraitorMenu" and self.CurrentState == "TraitorPresets") then
-            titleY = self.LogoY + ScrH()
+    
+    -- Ensure title is always visible in main state
+    if self.CurrentState == "Main" or self.TargetState == "Main" then
+        if self.TargetState == "Appearance" then
+            titleY = self.LogoY - ScrH() * progress
+            titleAlpha = 255 * (1 - progress)
+        elseif self.TargetState == "TraitorMenu" or self.TargetState == "TraitorPresets" then
+            titleY = self.LogoY + ScrH() * progress
+            titleAlpha = 255 * (1 - progress)
+        end
+    elseif self.CurrentState ~= "Main" and self.TargetState ~= "Main" then
+        if (self.CurrentState == "TraitorMenu" or self.CurrentState == "TraitorPresets") and (self.TargetState == "TraitorMenu" or self.TargetState == "TraitorPresets") then
+            titleAlpha = 0 -- Hide title in traitor menu
+        elseif self.CurrentState == "Settings" or self.TargetState == "Settings" then
+            titleY = self.LogoY
+            titleAlpha = 255
+        elseif self.CurrentState == "Achievements" or self.TargetState == "Achievements" then
+            titleY = self.LogoY
+            titleAlpha = 255
+        else
+            titleAlpha = 0
         end
     end
     
-    if self.CurrentState ~= "Main" and self.TargetState ~= "Main" then
-        if (self.CurrentState == "TraitorMenu" or self.CurrentState == "TraitorPresets") and (self.TargetState == "TraitorMenu" or self.TargetState == "TraitorPresets") then
-            -- Leave titleY as is (it was set above)
-        else
-            titleY = self.LogoY - ScrH()
-            if self.CurrentState == "Settings" or self.TargetState == "Settings" or self.CurrentState == "Achievements" or self.TargetState == "Achievements" then
-                titleY = self.LogoY
-            end
+    -- Draw title shadow/glow
+    if titleAlpha > 10 then
+        -- Glow effect
+        surface.SetTextColor(titleColorR, titleColorG, titleColorB, titleAlpha * 0.3)
+        surface.SetTextPos(titleX + textShakeX + 2, titleY + textShakeY + 2)
+        surface.DrawText(text1)
+        surface.SetTextColor(titleColorR, titleColorG, titleColorB, titleAlpha * 0.15)
+        surface.SetTextPos(titleX + textShakeX + 4, titleY + textShakeY + 4)
+        surface.DrawText(text1)
+        
+        -- Main title text
+        surface.SetTextColor(titleColorR, titleColorG, titleColorB, titleAlpha)
+        surface.SetTextPos(titleX + textShakeX, titleY + textShakeY)
+        surface.DrawText(text1)
+        
+        -- Subtitle/gamemode info below title
+        local mapname = game.GetMap()
+        local prefix = string.find(mapname, "_")
+        if prefix then
+            mapname = string.sub(mapname, prefix + 1)
         end
+        local gm = string.lower(gmod.GetGamemode().Name .. " | " .. string.NiceName(zb ~= nil and zb.GetRoundName or mapname))
+        
+        surface.SetFont("ZCity_Veteran")
+        local subW, subH = surface.GetTextSize(gm)
+        surface.SetTextColor(160, 160, 175, titleAlpha * 0.7)
+        surface.SetTextPos(titleX + textShakeX, titleY + titleH + ScreenScaleH(8) + textShakeY)
+        surface.DrawText(gm)
+        
+        -- Decorative line under title
+        local lineY = titleY + titleH + ScreenScaleH(4)
+        surface.SetDrawColor(titleColorR, titleColorG, titleColorB, titleAlpha * 0.4)
+        surface.DrawRect(titleX, lineY, titleW, 1)
+        surface.SetDrawColor(titleColorR, titleColorG, titleColorB, titleAlpha * 0.15)
+        surface.DrawRect(titleX, lineY + 2, titleW * 0.6, 1)
     end
-
-    surface.SetTextPos(self.LogoX + textShakeX, titleY + textShakeY)
-    surface.DrawText(text1)
     
     if self.IsIntro then
         local enterText = "press enter"
@@ -2638,7 +3069,7 @@ function PANEL:AddSelect( pParent, strTitle, tbl )
         local tw, th = surface.GetTextSize(text)
         
         -- Add padding to width for border
-        local padding = ScreenScale(4)
+        local padding = ScreenScale(6)
         local totalW = tw + padding * 2
 
         if self:IsHovered() then
@@ -2647,29 +3078,37 @@ function PANEL:AddSelect( pParent, strTitle, tbl )
                 self.HoveredSoundPlayed = true
             end
             
-            local alpha = 255
-            if math.random() > 0.9 then alpha = math.random(50, 200) end
+            -- Enhanced hover effect with gradient and glow
+            surface.SetDrawColor(THEME.hover_bg)
+            draw.RoundedBox(3, 0, 0, totalW, h, THEME.hover_bg)
             
-            surface.SetDrawColor(255, 255, 255, alpha)
-            surface.DrawRect(0, 0, totalW, h)
-            self:SetTextColor(Color(0, 0, 0, alpha))
+            -- Red accent line on left
+            surface.SetDrawColor(THEME.accent_red)
+            surface.DrawRect(0, 2, 2, h - 4)
+            
+            -- Subtle glow
+            surface.SetDrawColor(THEME.accent_red_glow)
+            draw.RoundedBox(3, 0, 0, totalW, h, THEME.accent_red_glow)
+            
+            self:SetTextColor(THEME.accent_white)
         else
             self.HoveredSoundPlayed = false
-            self:SetTextColor(Color(255, 255, 255))
+            self:SetTextColor(THEME.text_primary)
         end
         
         local offX, offY = 0, 0
-        if math.random() > 0.9 then
+        if math.random() > 0.92 then
              offX = math.random(-2, 2)
              offY = math.random(-2, 2)
         end
         
         draw.SimpleText(text, font, padding + offX, h/2 + offY, self:GetTextColor(), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         
-        if self:IsHovered() and math.random() > 0.7 then
-            local offsetX = math.random(-5, 5)
-            local offsetY = math.random(-2, 2)
-            draw.SimpleText(text, font, padding + offsetX, h/2 + offsetY, Color(0, 0, 0, math.random(50, 150)), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+        -- Glitch effect on hover
+        if self:IsHovered() and math.random() > 0.85 then
+            local offsetX = math.random(-4, 4)
+            local offsetY = math.random(-1, 1)
+            draw.SimpleText(text, font, padding + offsetX, h/2 + offsetY, Color(200, 50, 50, math.random(40, 100)), TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
         end
         return true
     end
@@ -2728,48 +3167,4 @@ timer.Simple(0.1, function()
         MainMenu:SetAlpha(255)
     end
 end)
-hook.Add("OnPauseMenuShow","OpenMainMenu",function()
-    local run = hook.Run("OnShowZCityPause")
-    if run then
-        return run
-    end
-
-    if MainMenu and IsValid(MainMenu) then
-        if MainMenu.IsIntro then
-            return false -- Prevent closing intro menu with ESC
-        end
-        MainMenu:Close()
-        MainMenu = nil
-        return false
-    end
-
-    MainMenu = vgui.Create("ZMainMenu")
-    MainMenu:MakePopup()
-    return false
-end)
-
-
-hook.Add("InitPostEntity", "ZCityOpenIntroMenu", function()
-    -- Use a timer to ensure everything is fully loaded before opening
-    timer.Simple(1, function()
-        if not ZCityHasSeenIntro then
-            -- Open the menu automatically on join
-            if MainMenu and IsValid(MainMenu) then MainMenu:Remove() end
-            MainMenu = vgui.Create("ZMainMenu")
-            MainMenu:MakePopup()
-            -- Force intro state
-            MainMenu.IsIntro = true
-            MainMenu:SetAlpha(255) -- Force visible immediately
-        end
-    end)
-end)
-
--- Force open on file refresh for testing (if not seen intro)
-timer.Simple(0.1, function()
-    if not ZCityHasSeenIntro and (not MainMenu or not IsValid(MainMenu)) then
-        MainMenu = vgui.Create("ZMainMenu")
-        MainMenu:MakePopup()
-        MainMenu.IsIntro = true
-        MainMenu:SetAlpha(255)
-    end
-end)
+-- Note: Duplicate hooks removed - only one instance of each hook is needed
