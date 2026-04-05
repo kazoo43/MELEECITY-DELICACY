@@ -903,7 +903,8 @@ function GM:ScoreboardShow()
 			local maxNameW = math.max(0, rw - nameX - rightPadding - statsW - textGap)
 			local displayName = ply:Name() or "Unknown"
 			local appearanceName = ply:GetNWString("PlayerName", "")
-			if appearanceName ~= "" then
+			local canSeeAppearanceNames = not LocalPlayer():Alive()
+			if canSeeAppearanceNames and appearanceName ~= "" then
 				displayName = displayName .. " (" .. appearanceName .. ")"
 			end
 			local fittedName = FitTextToWidth("ZCity_Veteran", displayName, maxNameW)
