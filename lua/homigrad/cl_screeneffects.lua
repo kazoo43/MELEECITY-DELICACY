@@ -272,10 +272,10 @@ local function stopthings()
 
 	lply.tinnitus = 0
 	
-	--[[if IsValid(PainStation) then
+	if IsValid(PainStation) then
 		PainStation:Stop()
 		PainStation = nil
-	end--]]
+	end
 
 	if IsValid(NoiseStation) then
 		NoiseStation:Stop()
@@ -368,9 +368,6 @@ hook.Add("Post Post Processing", "ItHurts", function()
 	end
 	if not lply:Alive() then
 		stopthings()
-	end
-	if not lply:Alive() then
-		stopthings()
 		if IsValid(despairSound) then
 			despairSound:Stop()
 			despairSound = nil
@@ -382,16 +379,6 @@ hook.Add("Post Post Processing", "ItHurts", function()
 		tab["$pp_colour_brightness"] = 0
 		tab["$pp_colour_contrast"] = 1
 		tab["$pp_colour_colour"] = 1
-		return
-	end
-
-	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() then
-		stopthings()
-		if IsValid(despairSound) then
-			despairSound:Stop()
-			despairSound = nil
-		end
-		despairSoundVol = 0
 		return
 	end
 
@@ -887,10 +874,6 @@ end)
 hook.Add("DrawOverlay", "despair_text", function()
 	local ply = IsValid(lply) and lply or LocalPlayer()
 	if not IsValid(ply) then return end
-	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() or IsValid(vgui.GetKeyboardFocus()) then
-		despairTextLerp = LerpFT(0.15, despairTextLerp, 0)
-		return
-	end
 	if !ply:Alive() then
 		despairTextLerp = LerpFT(0.15, despairTextLerp, 0)
 		return

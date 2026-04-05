@@ -69,13 +69,6 @@ hook.Add("Post Post Processing", "hg_despair_effect", function()
 		return
 	end
 
-	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() then
-		despairLerp = 0
-		despairTextLerp = 0
-		stop_despair_sound(true)
-		return
-	end
-
 	local org = get_target_organism()
 	local despair = (org and org.despair) and math.Clamp(org.despair, 0, 1) or 0
 
@@ -119,11 +112,6 @@ hook.Add("Post Post Processing", "hg_despair_effect", function()
 end)
 
 hook.Add("DrawOverlay", "hg_despair_text", function()
-	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() or IsValid(vgui.GetKeyboardFocus()) then
-		despairTextLerp = LerpFT(0.15, despairTextLerp, 0)
-		return
-	end
-
 	local org = get_target_organism()
 	local despair = (org and org.despair) and math.Clamp(org.despair, 0, 1) or 0
 	local target = math.Clamp((despair - 0.5) / 0.5, 0, 1)
