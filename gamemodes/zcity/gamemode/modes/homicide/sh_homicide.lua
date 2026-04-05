@@ -309,19 +309,34 @@ end
 
 local function ResolvePlayerTraitorLoadout(ply)
 	local candidateLoadoutStrings = {
-		ply.HMCDTraitorLoadoutString,
 		ply:GetInfo("hmcd_traitor_loadout"),
+		ply.HMCDTraitorLoadoutString,
 		ply:GetPData("zb_hmcd_traitor_loadout_cache", "")
 	}
+	local emptyLoadout
+	local emptyLoadoutString
 
 	for _, candidate in ipairs(candidateLoadoutStrings) do
 		local decoded = DecodeLoadoutFromString(candidate)
 		if decoded then
 			local normalizedLoadout, normalizedString = EncodeNormalizedLoadoutString(decoded, false)
-			ply.HMCDTraitorLoadoutString = normalizedString
-			ply:SetPData("zb_hmcd_traitor_loadout_cache", normalizedString)
-			return SanitizeLoadout(normalizedLoadout, true)
+			if normalizedLoadout.skillset ~= "none" or #normalizedLoadout.weapons > 0 then
+				ply.HMCDTraitorLoadoutString = normalizedString
+				ply:SetPData("zb_hmcd_traitor_loadout_cache", normalizedString)
+				return normalizedLoadout
+			end
+
+			if not emptyLoadout then
+				emptyLoadout = normalizedLoadout
+				emptyLoadoutString = normalizedString
+			end
 		end
+	end
+
+	if emptyLoadout then
+		ply.HMCDTraitorLoadoutString = emptyLoadoutString
+		ply:SetPData("zb_hmcd_traitor_loadout_cache", emptyLoadoutString)
+		return emptyLoadout
 	end
 
 	local fallbackLoadout, fallbackString = EncodeNormalizedLoadoutString(nil, true)
@@ -338,6 +353,7 @@ if SERVER then
 
 		local incomingLoadoutString = net.ReadString()
 		local decoded = DecodeLoadoutFromString(incomingLoadoutString)
+		if not decoded then return end
 		local _, normalizedString = EncodeNormalizedLoadoutString(decoded, false)
 
 		ply.HMCDTraitorLoadoutString = normalizedString
@@ -391,6 +407,7 @@ if CLIENT then
 
 	cvars.AddChangeCallback("hmcd_traitor_loadout", function(_, _, newValue)
 		local decoded = DecodeLoadoutFromString(newValue)
+		if not decoded then return end
 		local _, normalizedString = EncodeNormalizedLoadoutString(decoded, false)
 		HMCDSyncTraitorLoadout(normalizedString)
 	end, "HMCD_TraitorLoadoutSync")
