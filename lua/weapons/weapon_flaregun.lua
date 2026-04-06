@@ -153,23 +153,35 @@ local function safe_normalized(v, fallback)
     return v / len
 end
 
-local function igniteEntitySafe(ent, duration)
-    if not IsValid(ent) then return end
-    if ent.WaterLevel and ent:WaterLevel() > 0 then return end
-    if ent.IsOnFire and ent:IsOnFire() then return end
-    if ent.GetClass and ent:GetClass() == "prop_ragdoll" then
-        if ent:GetNWBool("pat_flare_ignited") then return end
-        ent:SetNWBool("pat_flare_ignited", true)
-        timer.Simple(duration + 0.2, function()
-            if IsValid(ent) then
-                ent:SetNWBool("pat_flare_ignited", false)
-            end
-        end)
+local function createWorldFire(attacker, pos, normal, feed, life)
+    if not isfunction(CreateVFire) then return end
+    if not validvec(pos) then return end
+    if not validvec(normal) then
+        normal = vector_up
+    else
+        normal = safe_normalized(normal, vector_up)
     end
-    ent:Ignite(duration, 16)
+    local owner = IsValid(attacker) and attacker or game.GetWorld()
+    local fire = CreateVFire(game.GetWorld(), pos, normal, feed or 45, owner)
+    if IsValid(fire) and life then
+        fire:ChangeLife(life)
+    end
 end
 
-local function igniteHitEntity(ent)
+local function igniteEntitySafe(ent, duration, attacker, hitPos)
+    if not IsValid(ent) then return end
+    if ent.WaterLevel and ent:WaterLevel() > 0 then return end
+    if istable(ent.fires) and next(ent.fires) != nil then return end
+    local pos = validvec(hitPos) and hitPos or (ent.WorldSpaceCenter and ent:WorldSpaceCenter() or ent:GetPos())
+    local tr = util.QuickTrace(pos + vector_up * 10, -vector_up * 75, {ent, attacker})
+    local firePos = tr.Hit and tr.HitPos or pos
+    local fireNormal = tr.Hit and tr.HitNormal or vector_up
+    local life = math.Clamp((tonumber(duration) or 5) * 7, 24, 90)
+    local feed = math.Clamp((tonumber(duration) or 5) * 5, 20, 70)
+    createWorldFire(attacker, firePos, fireNormal, feed, life)
+end
+
+local function igniteHitEntity(ent, attacker, hitPos)
     if not IsValid(ent) then return end
     local d
     if ent:IsPlayer() then
@@ -179,7 +191,7 @@ local function igniteHitEntity(ent)
     else
         d = 10
     end
-    igniteEntitySafe(ent, d)
+    igniteEntitySafe(ent, d, attacker, hitPos)
 end
 
 local function applyRagdollKnockback(ragdoll, hitPos, forceDir, strength, physBoneHint)
@@ -252,7 +264,7 @@ local function handlePlayerFlareHit(weapon, ply, tr, dmginfo)
         burnInfo:SetDamageForce(forceDir * 250)
 
         ragdoll:TakeDamageInfo(burnInfo)
-        igniteEntitySafe(ragdoll, 6)
+        igniteEntitySafe(ragdoll, 6, safeAttacker, tr.HitPos)
         applyRagdollKnockback(ragdoll, tr.HitPos, forceDir, 5200, tr.PhysicsBone)
     end)
 end
@@ -368,7 +380,7 @@ function SWEP:DoFlareShot(pos, ang)
     end
 
     tr.Entity:TakeDamageInfo(dmginfo)
-    igniteHitEntity(tr.Entity)
+    igniteHitEntity(tr.Entity, owner, hitPos)
 end
 
 function SWEP:ConsumeWeapon()
@@ -426,7 +438,6 @@ function SWEP:Shoot(override)
     self:ConsumeWeapon()
     return true
 end
-
 
 
 
