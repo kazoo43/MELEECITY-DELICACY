@@ -95,7 +95,7 @@ SWEP.NoHolster = true
 SWEP.BreakBoneMul = 0.55
 SWEP.PainMultiplier = 0.9
 
-SWEP.BlockTier = 3
+SWEP.BlockTier = 4
 SWEP.MeleeMaterial = "wood"
 SWEP.BlockImpactSound = "physics/wood/wood_plank_impact_hard1.wav"
 

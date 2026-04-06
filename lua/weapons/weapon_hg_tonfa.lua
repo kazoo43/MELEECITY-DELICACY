@@ -78,7 +78,7 @@ SWEP.Attack2HitFlesh = "Flesh.ImpactHard"
 SWEP.DeploySnd = "Plastic_Box.ImpactSoft"
 SWEP.SwingSoundPitch = 115
 
-SWEP.BlockTier = 2
+SWEP.BlockTier = 4
 SWEP.MeleeMaterial = "metal"
 SWEP.BlockImpactSound = "Plastic_Box.ImpactHard"
 

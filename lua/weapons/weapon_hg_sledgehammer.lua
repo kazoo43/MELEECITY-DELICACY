@@ -113,7 +113,7 @@ SWEP.HeavyChargeHoldPos = Vector(5,1,1)
 
 SWEP.CanHeavyAttack = true -- Set to true to enable
 
-SWEP.BlockTier = 5
+SWEP.BlockTier = 4
 SWEP.MeleeMaterial = "wood"
 SWEP.BlockImpactSound = "physics/wood/wood_plank_impact_hard1.wav"
 

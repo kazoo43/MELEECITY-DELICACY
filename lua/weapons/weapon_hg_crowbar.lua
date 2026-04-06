@@ -143,7 +143,7 @@ SWEP.HeavyAttackRads = 70 -- Custom radius/arc for heavy attack
 
 SWEP.CanHeavyAttack = true -- Set to true to enable
 
-SWEP.BlockTier = 3
+SWEP.BlockTier = 4
 SWEP.MeleeMaterial = "metal"
 SWEP.BlockImpactSound = "physics/metal/metal_solid_impact_bullet1.wav"
 

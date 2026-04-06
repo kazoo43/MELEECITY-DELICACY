@@ -106,7 +106,7 @@ SWEP.HitFleshExtraPitch = 75
 SWEP.ArteryChance = 1
 SWEP.SwingSoundPitch = 85
 
-SWEP.BlockTier = 3
+SWEP.BlockTier = 4
 SWEP.MeleeMaterial = "metal"
 SWEP.BlockImpactSound = "physics/metal/metal_solid_impact_bullet1.wav"
 
