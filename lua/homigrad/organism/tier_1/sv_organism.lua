@@ -571,19 +571,43 @@ hook.Add("Org Think", "Main", function(owner, org, timeValue)
 	end
 
 	if (org.fear or 0) > 0 then
-		despairAdd = despairAdd + math.Clamp(org.fear, 0, 2) * timeValue * 0.003
+		despairAdd = despairAdd + math.Clamp(org.fear, 0, 2) * timeValue * 0.0035
+	end
+
+	if (org.pain or 0) > 45 then
+		despairAdd = despairAdd + math.Clamp((org.pain - 45) / 85, 0, 1) * timeValue * 0.008
+	end
+
+	if (org.shock or 0) > 20 then
+		despairAdd = despairAdd + math.Clamp((org.shock - 20) / 50, 0, 1) * timeValue * 0.006
+	end
+
+	if (org.bleed or 0) > 2 then
+		despairAdd = despairAdd + math.Clamp((org.bleed - 2) / 14, 0, 1) * timeValue * 0.007
+	end
+
+	if (org.blood or 5000) < 3200 then
+		despairAdd = despairAdd + math.Clamp((3200 - org.blood) / 2200, 0, 1) * timeValue * 0.009
+	end
+
+	if (org.consciousness or 1) < 0.7 then
+		despairAdd = despairAdd + math.Clamp((0.7 - org.consciousness) / 0.7, 0, 1) * timeValue * 0.008
+	end
+
+	if (org.hungry or 0) > 55 then
+		despairAdd = despairAdd + math.Clamp((org.hungry - 55) / 45, 0, 1) * timeValue * 0.004
 	end
 
 	if org.o2 and org.o2[1] then
 		local o2 = org.o2[1]
 		if o2 < 14 then
-			despairAdd = despairAdd + math.Clamp((14 - o2) / 14, 0, 1) * timeValue * 0.045
+			despairAdd = despairAdd + math.Clamp((14 - o2) / 14, 0, 1) * timeValue * 0.05
 		end
 
 		local curregen = org.o2.curregen or 0
 		local losing = org.losing_oxy or 0
 		if curregen < losing then
-			despairAdd = despairAdd + math.Clamp(losing - curregen, 0, 2) * timeValue * 0.008
+			despairAdd = despairAdd + math.Clamp(losing - curregen, 0, 2) * timeValue * 0.009
 		end
 	end
 
@@ -620,7 +644,7 @@ hook.Add("Org Think", "Main", function(owner, org, timeValue)
 	end
 
 	if despairAdd > 0 then
-		despairAdd = math.min(despairAdd, timeValue * 0.03)
+		despairAdd = math.min(despairAdd, timeValue * 0.034)
 		org.despair = math.min(org.despair + despairAdd, 1)
 	end
 

@@ -339,9 +339,8 @@ local function ResolvePlayerTraitorLoadout(ply)
 		return emptyLoadout
 	end
 
-	local fallbackLoadout, fallbackString = EncodeNormalizedLoadoutString(nil, true)
+	local fallbackLoadout, fallbackString = EncodeNormalizedLoadoutString(nil, false)
 	ply.HMCDTraitorLoadoutString = fallbackString
-	ply:SetPData("zb_hmcd_traitor_loadout_cache", fallbackString)
 	return fallbackLoadout
 end
 
@@ -851,11 +850,6 @@ MODE.RoleChooseRoundTypes = {
 		TraitorDefaultRole = "traitor_default",
 		Traitor = {
 			["traitor_default"] = true,
-			["traitor_infiltrator"] = true,
-			["traitor_chemist"] = true,
-			["traitor_assasin"] = true,
-			--; ОБЪЕДЕНИТЬ ХИМИКА И ДИВЕРСАНТА!!! наверное
-			-- ["traitor_demoman"] = true,
 		},
 		Professions = {
 			["doctor"] = {
@@ -879,10 +873,6 @@ MODE.RoleChooseRoundTypes = {
 		TraitorDefaultRole = "traitor_default_soe",
 		Traitor = {
 			["traitor_default_soe"] = true,
-			["traitor_infiltrator_soe"] = true,
-			-- ["traitor_chemist_soe"] = true,
-			["traitor_assasin_soe"] = true,
-			-- ["traitor_demoman_soe"] = true,
 		},
 		Professions = {
 			["doctor"] = {

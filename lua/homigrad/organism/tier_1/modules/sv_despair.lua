@@ -70,16 +70,44 @@ hook.Add("Org Think", "hg_despair_think", function(owner, org, timeValue)
 		add = add + min(adrenalineDelta * 0.25, 0.08)
 	end
 
+	if (org.fear or 0) > 0 then
+		add = add + Clamp(org.fear, 0, 2) * timeValue * 0.028
+	end
+
+	if (org.pain or 0) > 45 then
+		add = add + Clamp((org.pain - 45) / 85, 0, 1) * timeValue * 0.055
+	end
+
+	if (org.shock or 0) > 20 then
+		add = add + Clamp((org.shock - 20) / 50, 0, 1) * timeValue * 0.04
+	end
+
+	if (org.bleed or 0) > 2 then
+		add = add + Clamp((org.bleed - 2) / 14, 0, 1) * timeValue * 0.045
+	end
+
+	if (org.blood or 5000) < 3200 then
+		add = add + Clamp((3200 - org.blood) / 2200, 0, 1) * timeValue * 0.06
+	end
+
+	if (org.consciousness or 1) < 0.7 then
+		add = add + Clamp((0.7 - org.consciousness) / 0.7, 0, 1) * timeValue * 0.05
+	end
+
+	if (org.hungry or 0) > 55 then
+		add = add + Clamp((org.hungry - 55) / 45, 0, 1) * timeValue * 0.02
+	end
+
 	if org.o2 and org.o2[1] then
 		local o2 = org.o2[1]
 		if o2 < 14 then
-			add = add + Clamp((14 - o2) / 14, 0, 1) * timeValue * 0.16
+			add = add + Clamp((14 - o2) / 14, 0, 1) * timeValue * 0.17
 		end
 
 		local curregen = org.o2.curregen or 0
 		local losing = org.losing_oxy or 0
 		if curregen < losing then
-			add = add + Clamp(losing - curregen, 0, 2) * timeValue * 0.035
+			add = add + Clamp(losing - curregen, 0, 2) * timeValue * 0.038
 		end
 	end
 
@@ -111,7 +139,7 @@ hook.Add("Org Think", "hg_despair_think", function(owner, org, timeValue)
 		end
 
 		if corpsesSeen > 0 then
-			add = add + timeValue * 0.11 * corpsesSeen
+			add = add + timeValue * 0.12 * corpsesSeen
 		end
 	end
 

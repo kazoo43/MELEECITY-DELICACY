@@ -435,11 +435,25 @@ hook.Add("Think", "hg_mouse_minigame_bandage_input", function()
 	if not lmbDown then
 		MouseMinigame.BlockStartLMB = false
 	end
+	if lmbDown and not bandageLMBDown and MouseMinigame:IsActive("bandage_" .. wep:EntIndex()) then
+		local session = MouseMinigame.ActiveSession
+		if session and CurTime() > ((session.startedAt or 0) + 0.2) then
+			MouseMinigame:Cancel("manual_cancel")
+			MouseMinigame.BlockStartLMB = true
+		end
+	end
 	bandageLMBDown = lmbDown
 
 	local rmbDown = input.IsMouseDown(MOUSE_RIGHT)
 	if not rmbDown then
 		MouseMinigame.BlockStartRMB = false
+	end
+	if rmbDown and not bandageRMBDown and MouseMinigame:IsActive("bandage_" .. wep:EntIndex()) then
+		local session = MouseMinigame.ActiveSession
+		if session and CurTime() > ((session.startedAt or 0) + 0.2) then
+			MouseMinigame:Cancel("manual_cancel")
+			MouseMinigame.BlockStartRMB = true
+		end
 	end
 	bandageRMBDown = rmbDown
 end)

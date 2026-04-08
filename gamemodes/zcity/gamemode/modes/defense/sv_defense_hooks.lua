@@ -2,21 +2,49 @@ local MODE = MODE
 
 util.AddNetworkString("defense_highlight_last_npcs")
 
+local CurTime = CurTime
+local IsValid = IsValid
+local player_GetAll = player.GetAll
+local ents_FindByClass = ents.FindByClass
+local ents_FindInSphere = ents.FindInSphere
+local util_TraceLine = util.TraceLine
+local string_find = string.find
+
 
 local npc_autoseek_timer = 0
 hook.Add("Think", "NPCAutoSeekPlayer", function()
     local currentRound = CurrentRound()
     if not currentRound or currentRound.name ~= "defense" then return end
-    if npc_autoseek_timer > CurTime() then return end
-    npc_autoseek_timer = CurTime() + 1
+    local now = CurTime()
+    if npc_autoseek_timer > now then return end
+    npc_autoseek_timer = now + 1
     
-    local npcs = ents.FindByClass("npc_*")
-    local plys = player.GetAll()
+    local plys = player_GetAll()
     local plyCount = #plys
 
     if (plyCount == 0) then
         return
     end
+
+    local alivePlys = {}
+    local downedPlys = {}
+    for i = 1, plyCount do
+        local ply = plys[i]
+        if not ply:Alive() then continue end
+        if ply.organism and ply.organism.otrub then
+            downedPlys[#downedPlys + 1] = ply
+        else
+            alivePlys[#alivePlys + 1] = ply
+        end
+    end
+
+    if #alivePlys == 0 and #downedPlys == 0 then
+        return
+    end
+
+    local npcs = ents_FindByClass("npc_*")
+    local tr = {mask = MASK_SOLID_BRUSHONLY}
+    local trFilter = {}
 
     for i = 1, #npcs do
         local npc = npcs[i]
@@ -51,16 +79,17 @@ hook.Add("Think", "NPCAutoSeekPlayer", function()
 
 
             if npc:IsUnreachable(npc:GetEnemy()) or npc:HasObstacles() then
-                for i, ent in pairs(ents.FindInSphere(npc:GetPos(), 64)) do
+                local npcPos = npc:GetPos()
+                for i, ent in pairs(ents_FindInSphere(npcPos, 64)) do
                     if ent:IsPlayer() or ent:IsNPC() then continue end
 
-                    local tr = {}
-                    tr.start = npc:GetPos()
+                    tr.start = npcPos
                     tr.endpos = ent:GetPos()
-                    tr.filter = {npc, ent}
-                    tr.mask = MASK_SOLID_BRUSHONLY
+                    trFilter[1] = npc
+                    trFilter[2] = ent
+                    tr.filter = trFilter
 
-                    if util.TraceLine(tr).Hit then continue end
+                    if util_TraceLine(tr).Hit then continue end
 
                     ent.unblock_tries = (ent.unblock_tries or 0) + 1
                     local phys = ent:GetPhysicsObject()
@@ -98,13 +127,8 @@ hook.Add("Think", "NPCAutoSeekPlayer", function()
         
         local npcPos = npc:GetPos()
 
-        local dobeyte_vyzhivshih = {}
-        for i = 1, plyCount do
-            local ply = plys[i]
-
-            if not ply:Alive() then continue end
-            if ply.organism and ply.organism.otrub then table.insert(dobeyte_vyzhivshih, i) continue end
-            
+        for i = 1, #alivePlys do
+            local ply = alivePlys[i]
             if (npc:Disposition(ply) == D_HT) then
                 local plyPos = ply:GetPos()
                 local dist = npcPos:DistToSqr(plyPos)
@@ -118,8 +142,8 @@ hook.Add("Think", "NPCAutoSeekPlayer", function()
         end
 
         if not IsValid(curPly) then
-            for i = 1, #dobeyte_vyzhivshih do
-                local ply = plys[dobeyte_vyzhivshih[i]]
+            for i = 1, #downedPlys do
+                local ply = downedPlys[i]
                 
                 if (npc:Disposition(ply) == D_HT) then
                     local plyPos = ply:GetPos()
@@ -201,10 +225,10 @@ hook.Add("OnEntityCreated", "DefenseAddNewNPCs", function(ent)
         end
         
         if (ent:IsNPC() or 
-            string.find(class, "npc_vj_") or 
-            string.find(class, "sent_vj_") or
-            string.find(class, "zb_") or 
-            string.find(class, "terminator_nextbot_")) and 
+            string_find(class, "npc_vj_", 1, true) or 
+            string_find(class, "sent_vj_", 1, true) or
+            string_find(class, "zb_", 1, true) or 
+            string_find(class, "terminator_nextbot_", 1, true)) and 
            not ent.IsDefenseWaveNPC and
            class ~= "npc_bullseye" and 
            class ~= "npc_enemyfinder" and 
@@ -285,7 +309,7 @@ hook.Add("EntityTakeDamage", "DefenseZombieDamageTrack", function(ent, dmginfo)
     local class = ent:GetClass() or ""
     if class == "zb_temporary_ent" then return end
     
-    if not (string.find(class, "npc_vj_") or string.find(class, "sent_vj_")) then return end
+    if not (string_find(class, "npc_vj_", 1, true) or string_find(class, "sent_vj_", 1, true)) then return end
     
     local MODE = CurrentRound()
     if not MODE or MODE.name ~= "defense" then return end
@@ -329,19 +353,21 @@ end)
 
 
 
-local lastNPCUpdate = 0
 local lastNPCList = {}
 local lastSentTime = 0
+local nextNPCValidityCheck = 0
+local nextDefenseCleanupCheck = 0
 
 hook.Add("Think", "DefenseNPCValidityCheck", function()
-    if CurTime() % 5 != 0 then return end 
+    local now = CurTime()
+    if now < nextNPCValidityCheck then return end
+    nextNPCValidityCheck = now + 5
     
     local MODE = CurrentRound()
     if not MODE or MODE.name ~= "defense" then return end
     
     if MODE:IsWaveActive() and MODE.DefenseWaveEntities then
         local invalidCount = 0
-        local totalEntities = table.Count(MODE.DefenseWaveEntities)
         
         for id, npc in pairs(MODE.DefenseWaveEntities) do
             if not IsValid(npc) or 
@@ -376,12 +402,13 @@ hook.Add("Think", "DefenseNPCValidityCheck", function()
             local remainingNPCs = {}
             for id, npc in pairs(MODE.DefenseWaveEntities) do
                 if IsValid(npc) and (not npc.DefenseNPCCountedAsDead) then
-                    table.insert(remainingNPCs, npc:EntIndex())
+                    remainingNPCs[#remainingNPCs + 1] = npc:EntIndex()
                 end
             end
+            table.sort(remainingNPCs)
             
            
-            local shouldSend = #remainingNPCs ~= #lastNPCList or CurTime() - lastSentTime > 5
+            local shouldSend = #remainingNPCs ~= #lastNPCList or now - lastSentTime > 5
             
             if shouldSend and #remainingNPCs > 0 then
                
@@ -395,9 +422,9 @@ hook.Add("Think", "DefenseNPCValidityCheck", function()
                     end
                 end
                 
-                if isDifferent or CurTime() - lastSentTime > 10 then
-                    lastNPCList = table.Copy(remainingNPCs)
-                    lastSentTime = CurTime()
+                if isDifferent or now - lastSentTime > 10 then
+                    lastNPCList = remainingNPCs
+                    lastSentTime = now
                     
                     net.Start("defense_highlight_last_npcs")
                     net.WriteTable(remainingNPCs)
@@ -409,20 +436,25 @@ hook.Add("Think", "DefenseNPCValidityCheck", function()
 end)
 
 hook.Add("Think", "DefenseCleanupCheck", function()
-    if CurTime() % 15 != 0 then return end 
+    local now = CurTime()
+    if now < nextDefenseCleanupCheck then return end
+    nextDefenseCleanupCheck = now + 15
     
     local MODE = CurrentRound()
     if not MODE or MODE.name ~= "defense" then return end
     
     if not MODE:IsWaveActive() and MODE.WaveCompleted then
         for _, ent in ents.Iterator() do
-            if IsValid(ent) and (ent:IsNPC() or 
-                string.find(tostring(ent:GetClass() or ""), "npc_vj_") or
-                string.find(tostring(ent:GetClass() or ""), "sent_vj_") or
-                string.find(tostring(ent:GetClass() or ""), "zb_") or
-                string.find(tostring(ent:GetClass() or ""), "terminator_nextbot_")) then
-                
-                local class = ent:GetClass()
+            if IsValid(ent) then
+                local class = ent:GetClass() or ""
+                if not (ent:IsNPC() or
+                    string_find(class, "npc_vj_", 1, true) or
+                    string_find(class, "sent_vj_", 1, true) or
+                    string_find(class, "zb_", 1, true) or
+                    string_find(class, "terminator_nextbot_", 1, true)) then
+                    continue
+                end
+
                 if class ~= "npc_bullseye" and class ~= "npc_enemyfinder" and class ~= "npc_bullseye_new" then
                     print("[DEFENSE] Removing leftover NPC: " .. class)
                     ent:Remove()

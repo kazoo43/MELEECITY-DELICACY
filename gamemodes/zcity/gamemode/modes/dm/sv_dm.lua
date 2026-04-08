@@ -1,4 +1,6 @@
 local MODE = MODE
+local CurTime = CurTime
+local ents_Iterator = ents.Iterator
 
 local deathmatch_nozone = ConVarExists("deathmatch_nozone") and GetConVar("deathmatch_nozone") or CreateConVar("deathmatch_nozone", 0, FCVAR_REPLICATED, "Allows to disable deathmatch mode zone.", 0, 1)
 
@@ -221,34 +223,38 @@ end
 
 local cooldown = CurTime()
 hook.Add("Think","bober",function(ply)
+	local now = CurTime()
 	local rnd = CurrentRound()
 	if not rnd or rnd.name != "dm" then return end
-	if (zb.ROUND_START or CurTime()) + 20 > CurTime() then return end
-	if cooldown > CurTime() then return end
+	if (zb.ROUND_START or now) + 20 > now then return end
+	if cooldown > now then return end
 	if deathmatch_nozone:GetBool() then return end
-	cooldown = CurTime() + 0.5
+	cooldown = now + 0.5
 
 	local pos = zonepoint
 	local radius = MODE.GetZoneRadius()
 	local radiussqr = radius * radius
+	local expItems = hg.expItems
 	
-	for i, ent in ents.Iterator() do
-		if pos:DistToSqr(ent:GetPos()) > radiussqr then
-			if ent:IsPlayer() then
-				hg.LightStunPlayer(ent)
-				
-				continue
-			end
+	for i, ent in ents_Iterator() do
+		if pos:DistToSqr(ent:GetPos()) <= radiussqr then continue end
 
-			if hgIsDoor(ent) then
-				if !ent:GetNoDraw() then
-					hgBlastThatDoor(ent)
-				end
+		if ent:IsPlayer() then
+			hg.LightStunPlayer(ent)
+			continue
+		end
 
-				continue
+		if hgIsDoor(ent) then
+			if !ent:GetNoDraw() then
+				hgBlastThatDoor(ent)
 			end
-			
-			if string.find(ent:GetClass(), "prop_") and !hg.expItems[ent:GetModel()] then
+			continue
+		end
+		
+		local class = ent:GetClass()
+		if class:sub(1, 5) == "prop_" then
+			local model = ent:GetModel()
+			if not expItems[model] then
 				MakeDissolver(ent, ent:GetPos(), 0)
 			end
 		end

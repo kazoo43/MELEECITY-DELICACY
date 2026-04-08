@@ -112,6 +112,17 @@ local loot_boxes = {
 	["models/crate.mdl"] = {8,"all"},
 }
 
+local IsValid = IsValid
+local ents_FindByClass = ents.FindByClass
+local ents_FindInBox = ents.FindInBox
+local player_GetAll = player.GetAll
+local util_TraceLine = util.TraceLine
+local util_QuickTrace = util.QuickTrace
+local string_lower = string.lower
+local math_random = math.random
+local table_insert = table.insert
+local ipairs = ipairs
+
 --[[
 	props_junk/cardboard_box001a_present.mdl
 props_junk/cardboard_box001b_present.mdl
@@ -175,7 +186,7 @@ hg.props = {
 hg.loot_boxes = {}
 
 for name, tbl in pairs(loot_boxes) do
-	hg.loot_boxes[string.lower(name)] = tbl
+	hg.loot_boxes[string_lower(name)] = tbl
 end
 
 local developer = GetConVar("developer")
@@ -406,17 +417,21 @@ local functions_break = {
 }
 
 hook.Add("ZB_InventoryChecked", "LootSpawn", function(ply, ent)
-	ent:SetNetVar("Inventory", ent.inventory)
 	if not IsValid(ent) or ent:IsPlayer() or ent.was_opened or not string.find(ent:GetClass(),"prop_") then return end
-	if not hg.loot_boxes[string.lower(ent:GetModel())] then return end
+
+	local model = string_lower(ent:GetModel() or "")
+	local lootBox = hg.loot_boxes[model]
+	if not lootBox then return end
+
+	ent:SetNetVar("Inventory", ent.inventory)
 	
 	ent.armors = {}
 	ent.inventory = {}
 
 	ent.was_opened = true
 
-	local chance = hg.loot_amount[hg.loot_boxes[string.lower(ent:GetModel())][1]] or {0,1}
-	local amount = math.random(chance[1],chance[2])
+	local chance = hg.loot_amount[lootBox[1]] or {0,1}
+	local amount = math_random(chance[1],chance[2])
 	
 	for i = 0,amount-1 do
 		local entName, AmmoCount, Tab = hg.GenerateLoot(ply,ent)
@@ -446,10 +461,13 @@ hg.loot_amount = {
 }
 
 hook.Add("PropBreak", "LootSpawn", function(ply,ent)
+	if not IsValid(ent) or ent:GetClass() ~= "prop_physics" then return end
+
+	local model = string_lower(ent:GetModel() or "")
+	if not hg.loot_boxes[model] then return end
+
 	ent.inventory = ent.inventory or {}
 	ent:SetNetVar("Inventory", ent.inventory)
-	if not IsValid(ent) or ent:GetClass() ~= "prop_physics" then return end
-	if not hg.loot_boxes[string.lower(ent:GetModel())] then return end
 	
 	hook.Run("ZB_InventoryChecked", ply, ent)
 
@@ -470,43 +488,71 @@ local trCheck = {
 
 local function MakeRandomSpawns(basepoints,iterations,maxiterations,tbl)
 	if iterations >= maxiterations then return tbl end
-	--я приготовил пельмени с говном вместо мяса
-	iterations = iterations + 1
+	if #basepoints == 0 then return tbl end
 
-	local vecRand = VectorRand(-2048, 2048)
-	vecRand[3] = math.random(8) == 1 and math.abs(vecRand[3]) / math.random(2) or 0
-	--local trhitwall = util.QuickTrace(basepoints[math.random(#basepoints)],vecRand)
+	for i = iterations + 1, maxiterations do
+		local vecRand = VectorRand(-2048, 2048)
+		vecRand[3] = math_random(8) == 1 and math.abs(vecRand[3]) / math_random(2) or 0
 
-	-- local tr = util.QuickTrace(basepoints[math.random(#basepoints)] + vecRand,-vector_up * 256)
+		local start = basepoints[math_random(#basepoints)] + vecRand
 
-	local start = basepoints[math.random(#basepoints)] + vecRand
-
-	local tr = util.TraceLine( {
-		start = start,
-		endpos = start + -vector_up * 256,
-		mask = bit.bor(MASK_SOLID, MASK_WATER)
-	} )
-	
-	if tr.Hit and not tr.HitSky and not tr.StartedSolid and not (tr.HitTexture == "**studio**" or tr.HitTexture == "**empty**" or tr.HitTexture == "TOOLS/TOOLSNODRAW") and not (tr.MatType == MAT_SLOSH) then
+		local tr = util_TraceLine({
+			start = start,
+			endpos = start + -vector_up * 256,
+			mask = bit.bor(MASK_SOLID, MASK_WATER)
+		})
 		
-		local pos = tr.HitPos + vector_up * 16
+		if tr.Hit and not tr.HitSky and not tr.StartedSolid and not (tr.HitTexture == "**studio**" or tr.HitTexture == "**empty**" or tr.HitTexture == "TOOLS/TOOLSNODRAW") and not (tr.MatType == MAT_SLOSH) then
+			local pos = tr.HitPos + vector_up * 16
 
-		trCheck.start = tr.HitPos
-		trCheck.endpos = tr.HitPos + vector_up * 36
+			trCheck.start = tr.HitPos
+			trCheck.endpos = tr.HitPos + vector_up * 36
 
-		local tr2 = util.TraceLine(trCheck)
-		
-		if not tr2.Hit and not tr2.StartedSolid and not (tr2.HitTexture == "**studio**") then
-			table.insert(basepoints,pos)
-			table.insert(tbl,pos)
+			local tr2 = util_TraceLine(trCheck)
+			
+			if not tr2.Hit and not tr2.StartedSolid and not (tr2.HitTexture == "**studio**") then
+				table_insert(basepoints,pos)
+				table_insert(tbl,pos)
+			end
 		end
 	end
 	
-	return MakeRandomSpawns(basepoints,iterations,maxiterations,tbl)
+	return tbl
 end
 
 local spawns = {}
 local tbl = {}
+local function RebuildSpawnPoints(saveMapPoints)
+	spawns = {}
+
+	local infoPoints = ents_FindByClass("info_*")
+	for i = 1, #infoPoints do
+		table_insert(spawns, infoPoints[i]:GetPos())
+	end
+
+	local navmeshareas = navmesh.GetAllNavAreas()
+	for i = 1, #navmeshareas do
+		local area = navmeshareas[i]
+		if area:IsUnderwater() then continue end
+		table_insert(spawns, area:GetCenter())
+	end
+
+	if #spawns == 0 then
+		return
+	end
+
+	tbl = {}
+	table.CopyFromTo(spawns,tbl)
+
+	local tbladd = MakeRandomSpawns(tbl,0,500,{})
+	local tblnew = zb.TranslateVectorsToPoints(tbladd)
+	
+	if saveMapPoints then
+		zb.SaveMapPoints("RandomSpawns", tblnew)
+	end
+
+	table.Add(spawns,tbladd)
+end
 
 --[[for i, ent in pairs(ents.FindByClass("info_*")) do
 	table.insert(spawns, ent:GetPos())
@@ -524,78 +570,17 @@ local tblnew = zb.TranslateVectorsToPoints(tbladd)
 table.CopyFromTo(tbladd,spawns)]]--
 
 hook.Add( "InitPostEntity", "some_unique_name", function()
-	spawns = {}
-	for i, ent in pairs(ents.FindByClass("info_*")) do
-		table.insert(spawns, ent:GetPos())
-	end
-
-	local navmeshareas = navmesh.GetAllNavAreas()
-	for i, k in pairs(navmeshareas) do
-		if k:IsUnderwater() then continue end
-
-		table.insert(spawns,k:GetCenter())
-	end
-
-	tbl = {}
-	table.CopyFromTo(spawns,tbl)
-
-	local tbladd = MakeRandomSpawns(tbl,0,500,{})
-	local tblnew = zb.TranslateVectorsToPoints(tbladd)
-	table.CopyFromTo(tbladd,spawns)
+	RebuildSpawnPoints(false)
 end )
 --zb.SendSpecificPointsToPly(Player(2), "RandomSpawns", true)
 
-spawns = {}
-for i, ent in pairs(ents.FindByClass("info_*")) do
-	table.insert(spawns, ent:GetPos())
-end
-
-local navmeshareas = navmesh.GetAllNavAreas()
-for i, k in pairs(navmeshareas) do
-	if k:IsUnderwater() then continue end
-
-	table.insert(spawns,k:GetCenter())
-end
-
-if #spawns > 0 then
-	tbl = {}
-	table.CopyFromTo(spawns,tbl)
-
-	local tbladd = MakeRandomSpawns(tbl,0,500,{})
-	local tblnew = zb.TranslateVectorsToPoints(tbladd)
-		
-	zb.SaveMapPoints( "RandomSpawns", tblnew )
-	--zb.SendSpecificPointsToPly(Entity(1), "RandomSpawns", true)
-	
-	table.Add(spawns,tbladd)
-end
+RebuildSpawnPoints(true)
 
 local hook_Run = hook.Run
 hook.Add("PostCleanupMap", "addboxs", function()
 	if timer.Exists("SpawnTheBoxes") then timer.Remove("SpawnTheBoxes") end
 	timer.Simple(.5,function()
-		spawns = {}
-		for i, ent in pairs(ents.FindByClass("info_*")) do
-			table.insert(spawns, ent:GetPos())
-		end
-		
-		local navmeshareas = navmesh.GetAllNavAreas()
-		for i, k in pairs(navmeshareas) do
-			if k:IsUnderwater() then continue end
-
-			table.insert(spawns,k:GetCenter())
-		end
-
-		tbl = {}
-		table.CopyFromTo(spawns,tbl)
-
-		local tbladd = MakeRandomSpawns(tbl,0,500,{})
-		local tblnew = zb.TranslateVectorsToPoints(tbladd)
-			
-		zb.SaveMapPoints( "RandomSpawns", tblnew )
-		--zb.SendSpecificPointsToPly(Entity(1), "RandomSpawns", true)
-
-		table.Add(spawns,tbladd)
+		RebuildSpawnPoints(true)
 
 		timer.Create("SpawnTheBoxes", 8, 0, function() hook_Run("Boxes Think") end)
 	end)
@@ -607,14 +592,24 @@ timer.Create("SpawnTheBoxes", 8, 0, function() hook_Run("Boxes Think") end)
 local vec = Vector(0, 0, 64)
 local vec_dist = Vector(500,500,500)
 hook.Add("Boxes Think", "SpawnBoxes", function()
-	if zb.ROUND_STATE ~= 1 or not CurrentRound().LootSpawn then return end
+	local round = CurrentRound()
+	if zb.ROUND_STATE ~= 1 or not round or not round.LootSpawn then return end
 	//local spawnPos = table.Random(spawns) + vec
 
 	//local spawnPos = zb:FurthestFromEveryone(spawns) + vec
-	local tbl = player.GetAll()
-	local ply = tbl[math.random(#tbl)]
+	local allPlayers = player_GetAll()
+	local alivePlayers = {}
+	for i = 1, #allPlayers do
+		local ply = allPlayers[i]
+		if ply:Alive() and ply:Team() ~= TEAM_SPECTATOR then
+			alivePlayers[#alivePlayers + 1] = ply
+		end
+	end
+	if #alivePlayers == 0 then return end
+
+	local ply = alivePlayers[math_random(#alivePlayers)]
 	
-	local vel = ply:GetVelocity() * math.random(1, 100) + VectorRand(-1024, 1024)
+	local vel = ply:GetVelocity() * math_random(1, 100) + VectorRand(-1024, 1024)
 	vel[3] = 0
 
 	local pos = ply:EyePos() 
@@ -624,41 +619,39 @@ hook.Add("Boxes Think", "SpawnBoxes", function()
 	tr.endpos = pos + vel
 	tr.filter = ply
 	tr.collisiongroup = COLLISION_GROUP_PLAYER
-	local trace = util.TraceLine(tr)
+	local trace = util_TraceLine(tr)
 	
-	maxcount = 8
-	while maxcount > 0 do
-		maxcount = maxcount - 1
-		local tr = {}
+	local maxcount = 8
+	for i = 1, maxcount do
 		tr.start = trace.HitPos - trace.Normal * 16
 		local rand = VectorRand(-1024, 1024)
 		tr.endpos = tr.start + rand
 		tr.filter = ply
 		tr.collisiongroup = COLLISION_GROUP_PLAYER
 
-		trace = util.TraceLine(tr)
-		trace = util.QuickTrace(trace.HitPos, -vector_up * 1024, ply)
+		trace = util_TraceLine(tr)
+		trace = util_QuickTrace(trace.HitPos, -vector_up * 1024, ply)
 	end
 
 	local spawnPos = trace.HitPos + vector_up * 32 - trace.Normal * 10
 	
-	if not CurrentRound().noBoxes then
-		for k, ply in ipairs(ents.FindInBox(spawnPos - vec_dist,spawnPos + vec_dist)) do
-			if not ply:IsPlayer() then continue end
-			if not ply:Alive() then continue end
-			local tr = util.TraceLine({
+	if not round.noBoxes then
+		for k, nearby in ipairs(ents_FindInBox(spawnPos - vec_dist,spawnPos + vec_dist)) do
+			if not nearby:IsPlayer() then continue end
+			if not nearby:Alive() then continue end
+			local visTr = util_TraceLine({
 				start = spawnPos,
-				endpos = ply:EyePos(),
+				endpos = nearby:EyePos(),
 				mask = MASK_VISIBLE
 			})
-			if IsValid(tr.Entity) and tr.Entity == ply then
+			if IsValid(visTr.Entity) and visTr.Entity == nearby then
 				--print("Fuck") 
 				return
 			end
 		end
 	end
 
-	if (math.random(2) == 1) and not CurrentRound().noBoxes then
+	if (math_random(2) == 1) and not round.noBoxes then
 
 		/*if math.random(4) == 1 then
 			local huy = ents.Create("prop_physics")
@@ -673,7 +666,7 @@ hook.Add("Boxes Think", "SpawnBoxes", function()
 		local huy = ents.Create("prop_physics")
 		huy:SetPos(spawnPos)
 		local randprop
-		for model, tbl in RandomPairs(math.random(6) == 1 and hg.props or hg.loot_boxes) do
+		for model, tbl in RandomPairs(math_random(6) == 1 and hg.props or hg.loot_boxes) do
 			if !istable(tbl) or !tbl[3] then randprop = model break end
 		end
 		if not util.IsValidProp(randprop) then huy:Remove() return end
@@ -726,5 +719,4 @@ for i = 1,100 do
 		huy.AmmoCount = AmmoCount
 	end
 end--]]
-
 

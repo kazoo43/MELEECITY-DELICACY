@@ -1745,8 +1745,7 @@ function MODE.SpawnPlayers(spawn_with_subroles)
             local sub_role = nil
             if(spawn_with_subroles and MODE.RoleChooseRoundTypes[MODE.Type])then
                 if(current_ply.isTraitor)then
-                    local sub_role_id = MODE.Type == "soe" and (current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor_SOE) or "traitor_default_soe") or (current_ply:GetInfo(MODE.ConVarName_SubRole_Traitor) or "traitor_default")
-					sub_role = sub_role_id
+                    sub_role = MODE.RoleChooseRoundTypes[MODE.Type].TraitorDefaultRole or "traitor_default"
                 end
 
                 if(current_ply.isGunner)then
@@ -1780,14 +1779,18 @@ function MODE.SpawnPlayers(spawn_with_subroles)
                 end
             end
             
-            if(MODE.Type == "soe")then
-                if(current_ply.isTraitor and current_ply.MainTraitor)then
-                    local walkie_talkie = current_ply:Give("weapon_walkie_talkie")
-					if walkie_talkie.Frequencies then
-						MODE.TraitorFrequency = MODE.TraitorFrequency or math.random(1, #walkie_talkie.Frequencies)
-						walkie_talkie.Frequency = MODE.TraitorFrequency
-						current_ply:ChatPrint("Walkie-Talkie Frequency = " .. walkie_talkie.Frequencies[MODE.TraitorFrequency])
-					end
+            if(current_ply.isTraitor)then
+                local walkie_talkie = current_ply:GetWeapon("weapon_walkie_talkie")
+
+                if(not IsValid(walkie_talkie))then
+                    walkie_talkie = current_ply:Give("weapon_walkie_talkie")
+                end
+
+                if(IsValid(walkie_talkie) and walkie_talkie.Frequencies and #walkie_talkie.Frequencies > 0)then
+                    MODE.TraitorFrequency = MODE.TraitorFrequency or walkie_talkie.Frequencies[math.random(1, #walkie_talkie.Frequencies)]
+                    walkie_talkie.Frequency = MODE.TraitorFrequency
+                    walkie_talkie:SetHudFrequency(MODE.TraitorFrequency)
+                    current_ply:ChatPrint("Walkie-Talkie Frequency = " .. MODE.TraitorFrequency)
                 end
             end
 

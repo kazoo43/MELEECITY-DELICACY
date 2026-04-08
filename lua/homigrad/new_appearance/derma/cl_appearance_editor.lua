@@ -835,7 +835,9 @@ function PANEL:PostInit()
         colorSelector:Dock(TOP)
         colorSelector:DockMargin(0, 0, 0, ScreenScale(8))
         for k, v in pairs(hg.Appearance.Clothes[tMdl.sex and 2 or 1]) do
-            local mater = menu:AddOption(k,function()
+            local clothName = string.Replace(k, "_colorable", "")
+            clothName = string.NiceName(string.Replace(clothName, "_", " "))
+            local mater = menu:AddOption(clothName,function()
                 main.AppearanceTable.AClothes.main = k
             end)
             if hg.Appearance.ClothesDesc[k] then
@@ -855,7 +857,9 @@ function PANEL:PostInit()
         CloseAllOpenMenus()
         local menu = CreateStyledListMenu("Lower Body")
         for k, v in pairs(hg.Appearance.Clothes[tMdl.sex and 2 or 1]) do
-            local mater = menu:AddOption(k,function()
+            local clothName = string.Replace(k, "_colorable", "")
+            clothName = string.NiceName(string.Replace(clothName, "_", " "))
+            local mater = menu:AddOption(clothName,function()
                 main.AppearanceTable.AClothes.pants = k
             end)
             if hg.Appearance.ClothesDesc[k] then
@@ -875,7 +879,9 @@ function PANEL:PostInit()
         CloseAllOpenMenus()
         local menu = CreateStyledListMenu("Footwear")
         for k, v in pairs(hg.Appearance.Clothes[tMdl.sex and 2 or 1]) do
-            local mater = menu:AddOption(k,function()
+            local clothName = string.Replace(k, "_colorable", "")
+            clothName = string.NiceName(string.Replace(clothName, "_", " "))
+            local mater = menu:AddOption(clothName,function()
                 main.AppearanceTable.AClothes.boots = k
             end)
         end
