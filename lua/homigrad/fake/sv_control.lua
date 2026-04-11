@@ -171,9 +171,15 @@ local speedupbones = {
 local vecfive = Vector(5,5,5)
 
 local player_GetHumans = player.GetHumans
+local nextHumansCacheAt = 0
 
 hook.Add("Think", "Fake", function()
-	hg.humans_cached = player_GetHumans()
+	local perfStart = HGPerf and HGPerf:Begin() or nil
+	local curTime = CurTime()
+	if curTime >= nextHumansCacheAt then
+		hg.humans_cached = player_GetHumans()
+		nextHumansCacheAt = curTime + 0.2
+	end
 
 	//for ply, ragdoll in pairs(hg.ragdollFake) do
 	for i, ply in player.Iterator() do
@@ -187,8 +193,8 @@ hook.Add("Think", "Fake", function()
 		if torso then
 			local torsopos, ang = ragdoll:GetBonePosition(torso)
 
-			if IsValid(ragdoll.bull) and (ragdoll.bull.lastposset or 0) < CurTime() then
-				ragdoll.bull.lastposset = CurTime() + 0.5
+			if IsValid(ragdoll.bull) and (ragdoll.bull.lastposset or 0) < curTime then
+				ragdoll.bull.lastposset = curTime + 0.5
 				
 				ragdoll.bull:SetPos(torsopos + vector_up * 5)
 				--ragdoll.bull:Remove()
@@ -222,7 +228,7 @@ hook.Add("Think", "Fake", function()
 
 		local inmove = false
 		
-		if (org.lightstun < CurTime()) and (tracehuy.Hit or ply.FakeRagdoll ~= ragdoll) and org.spine1 < hg.organism.fake_spine1 and org.canmove and ((ply.lastFake and (ply.lastFake) > CurTime()) or ply.FakeRagdoll ~= ragdoll) then
+		if (org.lightstun < curTime) and (tracehuy.Hit or ply.FakeRagdoll ~= ragdoll) and org.spine1 < hg.organism.fake_spine1 and org.canmove and ((ply.lastFake and (ply.lastFake) > curTime) or ply.FakeRagdoll ~= ragdoll) then
 			local power = 1
 			inmove = true
 			
@@ -237,8 +243,8 @@ hook.Add("Think", "Fake", function()
 					local name = ragdoll:GetBoneName(bone)
 
 					if IsValid(physobj) then
-						local bone_impulse = ply.HitBones and ply.HitBones[bonename] or CurTime()
-						local amt_impulse = (2 - math.Clamp(bone_impulse - CurTime(),0,2)) / 2
+						local bone_impulse = ply.HitBones and ply.HitBones[bonename] or curTime
+						local amt_impulse = (2 - math.Clamp(bone_impulse - curTime,0,2)) / 2
 						
 						local p = {}
 						p.secondstoarrive = 0.01
@@ -334,7 +340,7 @@ hook.Add("Think", "Fake", function()
 
 		local forward = ply:KeyDown(IN_FORWARD)
 		local back = ply:KeyDown(IN_BACK)
-		time = CurTime()
+		time = curTime
 		
 		if org.neckslit and not org.otrub and org.arterialwounds and not table.IsEmpty(org.arterialwounds) then
 			local neckwound
@@ -934,6 +940,7 @@ hook.Add("Think", "Fake", function()
 			end
 		end*/
 	end
+	if HGPerf and perfStart then HGPerf:End("fake.control.think", perfStart) end
 end)
 
 hook.Add("PlayerDeath", "homigrad-fake-control", function(ply)
@@ -956,8 +963,47 @@ hook.Add("PlayerDeath", "homigrad-fake-control", function(ply)
 	end
 end)
 
-hook.Add("Think", "RagdollWaterSplash", function()
+local trackedWaterRagdolls = {}
+local nextRagdollSplashTick = 0
+local nextRagdollSplashScan = 0
+
+hook.Add("OnEntityCreated", "RagdollWaterSplashTrack", function(ent)
+	if ent:GetClass() == "prop_ragdoll" then
+		trackedWaterRagdolls[ent] = true
+	end
+end)
+
+hook.Add("EntityRemoved", "RagdollWaterSplashTrack", function(ent)
+	trackedWaterRagdolls[ent] = nil
+end)
+
+timer.Simple(0, function()
 	for _, ragdoll in ipairs(ents.FindByClass("prop_ragdoll")) do
+		trackedWaterRagdolls[ragdoll] = true
+	end
+end)
+
+hook.Add("Think", "RagdollWaterSplash", function()
+	local perfStart = HGPerf and HGPerf:Begin() or nil
+	local curTime = CurTime()
+	if curTime < nextRagdollSplashTick then
+		if HGPerf and perfStart then HGPerf:End("ragdoll.splash.gate", perfStart) end
+		return
+	end
+	nextRagdollSplashTick = curTime + 0.1
+
+	if curTime >= nextRagdollSplashScan then
+		nextRagdollSplashScan = curTime + 2
+		for _, ragdoll in ipairs(ents.FindByClass("prop_ragdoll")) do
+			trackedWaterRagdolls[ragdoll] = true
+		end
+	end
+
+	for ragdoll in pairs(trackedWaterRagdolls) do
+		if not IsValid(ragdoll) then
+			trackedWaterRagdolls[ragdoll] = nil
+			continue
+		end
 		local waterLevel = ragdoll:WaterLevel()
 		if waterLevel > 0 and (ragdoll.oldWaterLevel or 0) == 0 then
 			local velocity = ragdoll:GetVelocity():Length()
@@ -1024,4 +1070,5 @@ hook.Add("Think", "RagdollWaterSplash", function()
 		end
 		ragdoll.oldWaterLevel = waterLevel
 	end
+	if HGPerf and perfStart then HGPerf:End("ragdoll.splash.think", perfStart) end
 end)

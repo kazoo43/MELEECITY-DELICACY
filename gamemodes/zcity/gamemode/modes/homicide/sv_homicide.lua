@@ -1317,7 +1317,16 @@ end)
 util.AddNetworkString("HMCD_TraitorDeathState")
 util.AddNetworkString("HMCD_RequestTraitorStatuses")
 
+local HMCD_TraitorRequestCooldown = setmetatable({}, { __mode = "k" })
+local HMCD_TraitorRecipientsCache = {}
+local HMCD_TraitorRecipientsNextRefresh = 0
+
 local function HMCD_GetTraitorRecipients()
+	local now = CurTime()
+	if now < HMCD_TraitorRecipientsNextRefresh then
+		return HMCD_TraitorRecipientsCache
+	end
+
     local recipients = {}
 
     for _, ply in player.Iterator() do
@@ -1326,6 +1335,8 @@ local function HMCD_GetTraitorRecipients()
         end
     end
 
+	HMCD_TraitorRecipientsCache = recipients
+	HMCD_TraitorRecipientsNextRefresh = now + 0.25
     return recipients
 end
 
@@ -1368,8 +1379,17 @@ hook.Add("PlayerCanPickupWeapon", "HMCD_TraitorRadioPickup", function( ply, weap
 end)
 
 net.Receive("HMCD_RequestTraitorStatuses", function(len, ply)
-    if not ply.isTraitor then return end
-    
+	local perfStart = HGPerf and HGPerf:Begin() or nil
+    if not ply.isTraitor then
+		if HGPerf and perfStart then HGPerf:End("hmcd.traitor.status_req.ignore", perfStart) end
+		return
+	end
+	local now = CurTime()
+	if (HMCD_TraitorRequestCooldown[ply] or 0) > now then
+		if HGPerf and perfStart then HGPerf:End("hmcd.traitor.status_req.drop", perfStart) end
+		return
+	end
+	HMCD_TraitorRequestCooldown[ply] = now + 0.35
 
     for _, other_ply in player.Iterator() do
         if other_ply.isTraitor and other_ply.CurAppearance then
@@ -1381,6 +1401,7 @@ net.Receive("HMCD_RequestTraitorStatuses", function(len, ply)
             net.Send(ply)
         end
     end
+	if HGPerf and perfStart then HGPerf:End("hmcd.traitor.status_req.handle", perfStart) end
 end)
 // ...
 

@@ -57,24 +57,34 @@ local time, mulTime, start
 local CurTime = CurTime
 local SysTime = SysTime
 hook.Add("Think", "homigrad-organism", function()
+	local perfStart = HGPerf and HGPerf:Begin() or nil
 	time = CurTime()
 	local tickrate2 = tickrate// / math.max(game.GetTimeScale(), 0.01)
 	//print(delay ,time + tickrate)
-	if delay + tickrate2 > time then return end
+	if delay + tickrate2 > time then
+		if HGPerf and perfStart then HGPerf:End("org.think.gate", perfStart) end
+		return
+	end
 
 	delay = time
 
 	if not start then
 		start = SysTime()
+		if HGPerf and perfStart then HGPerf:End("org.think.init", perfStart) end
 		return
 	end
 	
-	mulTime = (SysTime() - start) * game.GetTimeScale()
-
-	start = SysTime()
+	local now = SysTime()
+	mulTime = (now - start) * game.GetTimeScale()
+	start = now
 	for owner, org in pairs(hg.organism.list) do
-		hook_Run("Org Think", owner, org, mulTime)
+		if not IsValid(owner) then
+			hg.organism.list[owner] = nil
+		else
+			hook_Run("Org Think", owner, org, mulTime)
+		end
 	end
+	if HGPerf and perfStart then HGPerf:End("org.think.main", perfStart) end
 end)
 
 local lastcall = SysTime()
