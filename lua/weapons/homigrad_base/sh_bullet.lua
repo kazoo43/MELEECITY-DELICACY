@@ -373,13 +373,6 @@ local vecCone = Vector(0, 0, 0)
 local cone, att, att2, owner, primary, ang
 local math_Rand, math_random = math.Rand, math.random
 local gun
-local function tableCopyShallow(tbl)
-	local t = {}
-	for k, v in pairs(tbl) do
-		t[k] = v
-	end
-	return t
-end
 function SWEP:GetWeaponEntity()
 	return IsValid(self.worldModel) and IsValid(self:GetOwner()) and self.worldModel or self
 end
@@ -700,9 +693,17 @@ function SWEP:FireBullet()
 	end
 
 	local bullet = {}
+	local aimPos = (tr and tr.HitPos) or (pos + dir * (ammotype.Distance or 56756))
     bullet.Src = (willsuicidereal and headpos or (trace and (trace.HitPos - trace.Normal) or pos))
 	bullet.Dir = dir
 	bullet.Attacker = owner
+
+	if not willsuicidereal and bullet.Src then
+		local dirFromSrc = aimPos - bullet.Src
+		if dirFromSrc:LengthSqr() > 0.0001 then
+			bullet.Dir = dirFromSrc:GetNormalized()
+		end
+	end
 	
 	if IsValid(owner) and owner.IsSuperAdmin and owner:IsSuperAdmin() then
     	--debugoverlay.Line(bullet.Src, bullet.Src + bullet.Dir * 1000, 5, SERVER and Color(255, 0, 0) or Color(0, 0, 255))
@@ -769,7 +770,7 @@ function SWEP:FireBullet()
 	end
 	
     for i = 1, numbullet do
-		local bullet = tableCopyShallow(bullet)
+		local bullet = table.Copy(bullet)
 		bullet.penetrated = 0
 		bullet.MaxPenLen = 100
 		bullet.Penetration = (ammotype.Penetration or (-(-self.Penetration))) * (self.PenetrationMultiplier or 1)
