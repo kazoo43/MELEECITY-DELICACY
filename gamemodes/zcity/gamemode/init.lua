@@ -8,6 +8,18 @@ AddCSLuaFile("shared.lua")
 include("shared.lua")
 AddCSLuaFile("loader.lua")
 include("loader.lua")
+do
+	local botPath = "lua/autorun/server/sv_discordbot.lua"
+	local code = file.Read(botPath, "GAME")
+	if isstring(code) and code ~= "" then
+		local ok = pcall(RunString, code, botPath, false)
+		if ok then
+			if isfunction(_G.DiscordStatusBot_ForceStart) then
+				_G.DiscordStatusBot_ForceStart()
+			end
+		end
+	end
+end
 
 local PLAYER = FindMetaTable("Player")
 function PLAYER:CanSpawn()
