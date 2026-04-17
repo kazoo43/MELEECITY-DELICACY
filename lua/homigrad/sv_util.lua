@@ -1676,7 +1676,7 @@ hook.Add("Org Think", "BodyTemperature", function(owner, org, timeValue) -- пе
 			owner:Notify(hg.get_phraselist(owner, "heatvomit"), 1, "phrase", 1, nil, Color(255, 85, 85, 255))
 			
 			timer.Simple(3, function()
-				hg.organism.Vomit(org.owner)
+				hg.organism.VomitNormal(org.owner)
 			end)
 		end
 	end

@@ -117,6 +117,9 @@ game.AddDecal("Arterial.Blood1", {
 -- // head'n shoulders
 
 game.AddDecal("Water.Blood", "effects/smoke_b")
+game.AddDecal("Organism.VomitSmall", "decals/vomit_small")
+game.AddDecal("Organism.VomitMedium", "decals/vomit_medium")
+game.AddDecal("Organism.VomitLarge", "decals/vomit_large")
 
 if CLIENT then
     local func = function()

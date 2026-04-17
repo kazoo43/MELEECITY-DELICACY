@@ -367,11 +367,51 @@ local functions = {
     -- end,
 }
 
+local function BuildLootTakeKey(ent, tblIndex, thing)
+    if not IsValid(ent) then return "" end
+    return ent:EntIndex() .. "|" .. tblIndex .. "|" .. thing
+end
+
+local function GetLootTakeDuration(tblIndex, thing)
+    if tblIndex == "Weapons" then
+        local swep = weapons.Get(thing)
+        local weight = swep and tonumber(swep.weight)
+        if weight ~= nil then
+            return math.Clamp(weight, 0, 5)
+        end
+    end
+
+    return math.Rand(0.5, 1.15)
+end
+
+util.AddNetworkString("ply_take_item_begin")
+util.AddNetworkString("ply_take_item_begin_ack")
+net.Receive("ply_take_item_begin", function(_, ply)
+    local tblIndex = net.ReadString()
+    local thing = net.ReadString()
+    net.ReadTable()
+    local ent = net.ReadEntity()
+
+    if not IsValid(ent) or not IsValid(ply) then return end
+    if ent:IsPlayer() then
+        if not (ent.organism and ent.organism.otrub) then return end
+        if not IsValid(ent.FakeRagdoll) then return end
+    end
+    if ent:GetPos():Distance(ply:GetPos()) > 125 then return end
+
+    local key = BuildLootTakeKey(ent, tblIndex, thing)
+    local duration = GetLootTakeDuration(tblIndex, thing)
+    ply.lootTakePending = ply.lootTakePending or {}
+    ply.lootTakePending[key] = CurTime() + duration
+
+    net.Start("ply_take_item_begin_ack")
+    net.WriteString(key)
+    net.WriteFloat(duration)
+    net.Send(ply)
+end)
+
 util.AddNetworkString("ply_take_item")
 net.Receive("ply_take_item", function(len, ply)
-    if (ply.cooldown_takeitem or 0) > CurTime() then return end
-    ply.cooldown_takeitem = CurTime() + 0.3
-
     local tblIndex = net.ReadString()
     local thing = net.ReadString()
     local tbl = net.ReadTable()
@@ -384,6 +424,13 @@ net.Receive("ply_take_item", function(len, ply)
     end
 
     if ent:GetPos():Distance(ply:GetPos()) > 125 then return end
+    local key = BuildLootTakeKey(ent, tblIndex, thing)
+    local unlockTime = ply.lootTakePending and ply.lootTakePending[key]
+    if not unlockTime or unlockTime > CurTime() then return end
+    if (ply.cooldown_takeitem or 0) > CurTime() then return end
+    ply.cooldown_takeitem = CurTime() + 0.3
+    ply.lootTakePending[key] = nil
+
     local func = functions[tblIndex]
     if func then func(ply, ent, thing, unpack(tbl)) end
     ply:SetNetVar("Inventory", ply.inventory)

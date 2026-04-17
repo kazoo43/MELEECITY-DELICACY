@@ -51,8 +51,8 @@ hook.Add("HUDPaint", "HMCD_SubRoles_Abilities", function()
 	
 	if(ply:Alive())then
 		if(ply.isTraitor)then
-			if(ply.SubRole == "traitor_infiltrator" or ply.SubRole == "traitor_infiltrator_soe")then
-				local text = "(HOLD)[ALT + E] Break Neck"
+			if(ply.SubRole == "traitor_infiltrator" or ply.SubRole == "traitor_infiltrator_soe" or ply.SubRole == "traitor_martial_artist")then
+				local text = (ply.SubRole == "traitor_martial_artist") and "(HOLD)[ALT + R] Break Neck" or "(HOLD)[ALT + E] Break Neck"
 				local tw, th = surface.GetTextSize(text)
 				local cx, cy = trace.HitPos:ToScreen().x, trace.HitPos:ToScreen().y
 				cy = cy + y_offset
@@ -70,7 +70,7 @@ hook.Add("HUDPaint", "HMCD_SubRoles_Abilities", function()
 					y_offset = y_offset + th + after_text_offset
 				end
 				
-				if(IsValid(aim_ent))then
+				if((ply.SubRole == "traitor_infiltrator" or ply.SubRole == "traitor_infiltrator_soe") and IsValid(aim_ent))then
 					if(aim_ent:IsRagdoll())then
 						local text = "[ALT + R] Exchange Appearances"
 						local tw, th = surface.GetTextSize(text)
@@ -83,7 +83,7 @@ hook.Add("HUDPaint", "HMCD_SubRoles_Abilities", function()
 				end
 			end
 			
-			if(ply.SubRole == "traitor_assasin" or ply.SubRole == "traitor_assasin_soe" or ply.PlayerClassName == "sc_infiltrator")then
+			if(ply.SubRole == "traitor_assasin" or ply.SubRole == "traitor_assasin_soe" or ply.SubRole == "traitor_martial_artist" or ply.PlayerClassName == "sc_infiltrator")then
 				local aim_ent, other_ply, trace = MODE.GetPlayerTraceToOther(ply, nil, MODE.DisarmReach)
 				local text = "(HOLD)[ALT + E] Disarm"
 				local tw, th = surface.GetTextSize(text)

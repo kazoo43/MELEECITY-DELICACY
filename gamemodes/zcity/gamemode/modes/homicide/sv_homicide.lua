@@ -29,143 +29,145 @@ MODE.LootTable = {
 		{4,"weapon_walkie_talkie"},
 		{3,"hg_flashlight"},
 		{3,"weapon_bigbandage_sh"},
-		{2,"weapon_medkit_sh"},
+		{1.2,"weapon_medkit_sh"},
 
 		{1,"weapon_matches"},
 		{1,"weapon_zippo_tpik"},
 
-		{0.2,"weapon_morphine"},
-		{0.2,"weapon_mannitol"},
-		{0.5,"weapon_naloxone"},
-		{0.1,"weapon_fentanyl"},
-		{0.9,"weapon_betablock"},
-		{0.5,"weapon_adrenaline"},
+		{0.08,"weapon_morphine"},
+		{0.08,"weapon_mannitol"},
+		{0.3,"weapon_naloxone"},
+		{0.04,"weapon_fentanyl"},
+		{0.45,"weapon_betablock"},
+		{0.2,"weapon_adrenaline"},
 
-		{0.65,"ent_armor_mask2"},
-		{0.27, "ent_armor_helmet2"},
+		{0.25,"ent_armor_mask2"},
+		{0.1, "ent_armor_helmet2"},
 	}},
-	{20,{
+	{16,{
 		{12,"weapon_hammer"},
-		{2,"weapon_wrench"},
+		{1.4,"weapon_wrench"},
 		{6,"weapon_brick"},
 		{10,"weapon_pocketknife"},
 
-		{4,"weapon_bat"},
-		{4,"weapon_barbedbat"}, 
-		{4,"weapon_leadpipe"},
-		{3,"weapon_hg_extinguisher"},
+		{2.5,"weapon_bat"},
+		{1.8,"weapon_barbedbat"},
+		{2.2,"weapon_leadpipe"},
+		{1.8,"weapon_hg_extinguisher"},
 
-		{2,"weapon_hg_crowbar"},
-		{1,"weapon_hatchet"},
-		{0.9,"weapon_hg_axe"},
-		{0.9,"weapon_hg_katana"},
-		{0.5,"weapon_hg_machete"},
-		{0.4,"weapon_hg_sledgehammer"},
+		{1,"weapon_hg_crowbar"},
+		{0.55,"weapon_hatchet"},
+		{0.4,"weapon_hg_axe"},
+		{0.04,"weapon_hg_katana"},
+		{0.22,"weapon_hg_machete"},
+		{0.18,"weapon_hg_sledgehammer"},
 
-		{0.2,"hg_brassknuckles"},
-		{0.13,"weapon_hg_spear"},
-		{0.13, "weapon_hg_spear_pro"},
+		{0.1,"hg_brassknuckles"},
+		{0.06,"weapon_hg_spear"},
+		{0.04, "weapon_hg_spear_pro"},
 	}},
-	{11,{
-		{10,"*sight*"},
-		{7,"*barrel*"},
-
-		{7,"ent_armor_helmet7"},
-		{5,"ent_armor_vest7"},
-		{8, "ent_armor_helmet2"},
-	}},
-	{9,{
-		{6,"*sight*"},
+	{7,{
+		{8,"*sight*"},
 		{5,"*barrel*"},
 
-		{15,"weapon_mp-80"},
-		{8,"weapon_makarov"},
-		{7,"weapon_ruger"},
-		{4,"weapon_revolver2"},
+		{3,"ent_armor_helmet7"},
+		{2,"ent_armor_vest7"},
+		{5, "ent_armor_helmet2"},
+	}},
+	{5,{
+		{4,"*sight*"},
+		{3,"*barrel*"},
+
+		{8,"weapon_mp-80"},
+		{5,"weapon_makarov"},
+		{4,"weapon_ruger"},
+		{2.2,"weapon_revolver2"},
+		{2,"weapon_px4beretta"},
+		{1.8,"weapon_m1911"},
+		{1.6,"weapon_m9beretta"},
+		{0.9,"weapon_fn45"},
+	}},
+	{3.5, {
+		{4,"weapon_hk_usp"},
+		{4,"weapon_glock17"},
+		{4,"weapon_cz75"},
 		{4,"weapon_px4beretta"},
-		{3.5,"weapon_m1911"},
-		{3,"weapon_m9beretta"},
-		{2,"weapon_fn45"},
+
+		{2.2,"weapon_deagle"},
+		{2.2,"weapon_colt9mm"},
+
+		{1.8,"weapon_doublebarrel_short"},
+		{1.8,"weapon_doublebarrel"},
+		{1.3, "weapon_flintlock"},
 	}},
-	{6, {
-		{9,"weapon_hk_usp"},
-		{9,"weapon_glock17"},
-		{9,"weapon_cz75"},
-		{9,"weapon_px4beretta"},
-
-		{6,"weapon_deagle"},
-		{6,"weapon_colt9mm"},
-
-		{5,"weapon_doublebarrel_short"},
-		{5,"weapon_doublebarrel"},
-		{4, "weapon_flintlock"},
+	{2.5,{
+		{2.5,"ent_armor_vest3"},
+		{2.5,"ent_armor_helmet1"},
+		{0.7,"ent_armor_vest4"},
+		{0.7, "ent_armor_helmet5"},
 	}},
-	{4,{
-		{5,"ent_armor_vest3"},
-		{5,"ent_armor_helmet1"},
-		{2,"ent_armor_vest4"},
-		{2, "ent_armor_helmet5"},
-	}},
-	{2, {
-		{4,"weapon_remington870"},
+	{0.8, {
+		{1.4,"weapon_remington870"},
 
-		{4,"weapon_hg_molotov_tpik"},
-		{4,"weapon_hg_pipebomb_tpik"},
+		{1.2,"weapon_hg_molotov_tpik"},
+		{0.8,"weapon_hg_pipebomb_tpik"},
 
-		{3,"weapon_mini14"},
-		{3,"weapon_kar98"},
-		{3,"weapon_ar_pistol"},
-		{3,"weapon_draco"},
-		{3,"weapon_mp5"},
-		{3,"weapon_m16a2"},
+		{0.9,"weapon_mini14"},
+		{0.9,"weapon_kar98"},
+		{0.9,"weapon_ar_pistol"},
+		{0.9,"weapon_draco"},
+		{0.9,"weapon_mp5"},
+		{0.8,"weapon_m16a2"},
 
-		{2,"weapon_mp7"},
-		{2,"weapon_sks"},
-		{2,"weapon_ar15"},
-		{2,"weapon_ac556"},
+		{0.55,"weapon_mp7"},
+		{0.55,"weapon_sks"},
+		{0.55,"weapon_ar15"},
+		{0.55,"weapon_ac556"},
 
-		{1,"weapon_vpo136"},
-		{1,"weapon_musket"},
-		{1,"weapon_vpo136"},
-		{1,"weapon_sr25"},
+		{0.25,"weapon_vpo136"},
+		{0.35,"weapon_musket"},
+		{0.25,"weapon_vpo136"},
+		{0.2,"weapon_sr25"},
+		{0.03,"weapon_hg_nunchuks"},
 	}},
 }
 
 MODE.LootTableStandard = {
-	{65, {
+	{62, {
 		{15,"weapon_smallconsumable"},
-		{12,"weapon_bigconsumable"},
-		{8,"weapon_tourniquet"},
-		{8,"weapon_bandage_sh"},
-		{7,"weapon_ducttape"},
-		{6,"weapon_painkillers"},
-		{5,"weapon_bloodbag"},
-		{4,"hg_flashlight"},
-		{1,"weapon_matches"},--for dumbasses
+		{10,"weapon_bigconsumable"},
+		{6,"weapon_tourniquet"},
+		{6,"weapon_bandage_sh"},
+		{5,"weapon_ducttape"},
+		{4.5,"weapon_painkillers"},
+		{3.5,"weapon_bloodbag"},
+		{2.5,"hg_flashlight"},
+		{0.8,"weapon_matches"},
 	}},
-	{35, {
-		{1,"weapon_hammer"},
-		{1,"weapon_brick"},
-		{0.45,"weapon_wrench"},
-		{1,"weapon_pocketknife"},
-		{0.32,"weapon_bat"},
-		{0.3,"weapon_leadpipe"},
+	{24, {
+		{0.75,"weapon_hammer"},
+		{0.75,"weapon_brick"},
+		{0.3,"weapon_wrench"},
+		{0.8,"weapon_pocketknife"},
+		{0.2,"weapon_bat"},
+		{0.18,"weapon_leadpipe"},
 
-		{0.15,"weapon_hg_extinguisher"},
-		{0.14,"weapon_hg_crowbar"},
+		{0.08,"weapon_hg_extinguisher"},
+		{0.07,"weapon_hg_crowbar"},
 
-		{0.12,"weapon_hatchet"},
-		{0.10,"weapon_hg_axe"},
-		{0.03,"weapon_hg_katana"},
-		{0.09,"weapon_hg_sledgehammer"},
-		{0.07,"weapon_hg_machete"},
+		{0.05,"weapon_hatchet"},
+		{0.04,"weapon_hg_axe"},
+		{0.003,"weapon_hg_katana"},
+		{0.035,"weapon_hg_sledgehammer"},
+		{0.03,"weapon_hg_machete"},
+		{0.002,"weapon_hg_nunchuks"},
 	}},
 }
 
 local function BuildMixedLootTable()
 	local mixedLootTable = {}
 	local STD_CATEGORY_MULTIPLIER = 1
-	local SOE_CATEGORY_MULTIPLIER = 0.15
+	local SOE_CATEGORY_MULTIPLIER = 0.10
 
 	local function appendLootTable(sourceLootTable, scale)
 		for _, weightedCategory in ipairs(sourceLootTable or {}) do
@@ -778,22 +780,27 @@ function MODE:Intermission()
 	
 	-- -- potom
 	
-	MODE.NextRoundMainTraitors = MODE.NextRoundMainTraitors or {}
-	for _, ply in RandomPairs(player.GetAll()) do
-		if ply.isTraitor or ply:Team() == TEAM_SPECTATOR then continue end
-		if not MODE.NextRoundMainTraitors[ply:SteamID()] then continue end
-		if traitors_needed <= 0 then break end
+	MODE.NextRoundForcedTraitors = MODE.NextRoundForcedTraitors or {}
+	for _, forced_role in ipairs({"main", "assistant"}) do
+		for _, ply in RandomPairs(player.GetAll()) do
+			if ply.isTraitor or ply:Team() == TEAM_SPECTATOR then continue end
+			if MODE.NextRoundForcedTraitors[ply:SteamID()] ~= forced_role then continue end
+			if traitors_needed <= 0 then break end
 
-		ply.isTraitor = true
-		traitors_needed = traitors_needed - 1
-		traitors[#traitors + 1] = ply
+			ply.isTraitor = true
+			traitors_needed = traitors_needed - 1
+			traitors[#traitors + 1] = ply
 
-		main_traitor = ply
-		ply.MainTraitor = true
-		MODE.NextRoundMainTraitors[ply:SteamID()] = nil
+			if forced_role == "main" and not IsValid(main_traitor) then
+				main_traitor = ply
+				ply.MainTraitor = true
+			end
 
-		ply:SetPData("zb_hmcd_last_traitor_round_index", current_round_index)
-		ply:SetPData("zb_hmcd_total_traitor_rounds", tonumber(ply:GetPData("zb_hmcd_total_traitor_rounds", 0)) + 1)
+			MODE.NextRoundForcedTraitors[ply:SteamID()] = nil
+
+			ply:SetPData("zb_hmcd_last_traitor_round_index", current_round_index)
+			ply:SetPData("zb_hmcd_total_traitor_rounds", tonumber(ply:GetPData("zb_hmcd_total_traitor_rounds", 0)) + 1)
+		end
 	end
 
 	if traitors_needed > 0 then
@@ -831,12 +838,9 @@ function MODE:Intermission()
 				weight = weight * (1 - math.min((entry.rounds_played - average_traitor_rounds) * 0.1, 0.6))
 			end
 
-			local karma = ply.Karma or 100
-			if karma < 50 then
-				weight = weight * 0.75
-			elseif karma < 80 then
-				weight = weight * 0.9
-			end
+			local karma = tonumber(ply.Karma) or (ply.guilt_GetValue and ply:guilt_GetValue()) or 100
+			local karma_weight = math.Clamp(karma / 80, 0.35, 1.75)
+			weight = weight * karma_weight
 
 			entry.weight = math.max(weight, 5)
 		end
@@ -1315,7 +1319,16 @@ end)
 util.AddNetworkString("HMCD_TraitorDeathState")
 util.AddNetworkString("HMCD_RequestTraitorStatuses")
 
+local HMCD_TraitorRequestCooldown = setmetatable({}, { __mode = "k" })
+local HMCD_TraitorRecipientsCache = {}
+local HMCD_TraitorRecipientsNextRefresh = 0
+
 local function HMCD_GetTraitorRecipients()
+	local now = CurTime()
+	if now < HMCD_TraitorRecipientsNextRefresh then
+		return HMCD_TraitorRecipientsCache
+	end
+
     local recipients = {}
 
     for _, ply in player.Iterator() do
@@ -1324,6 +1337,8 @@ local function HMCD_GetTraitorRecipients()
         end
     end
 
+	HMCD_TraitorRecipientsCache = recipients
+	HMCD_TraitorRecipientsNextRefresh = now + 0.25
     return recipients
 end
 
@@ -1366,8 +1381,17 @@ hook.Add("PlayerCanPickupWeapon", "HMCD_TraitorRadioPickup", function( ply, weap
 end)
 
 net.Receive("HMCD_RequestTraitorStatuses", function(len, ply)
-    if not ply.isTraitor then return end
-    
+	local perfStart = HGPerf and HGPerf:Begin() or nil
+    if not ply.isTraitor then
+		if HGPerf and perfStart then HGPerf:End("hmcd.traitor.status_req.ignore", perfStart) end
+		return
+	end
+	local now = CurTime()
+	if (HMCD_TraitorRequestCooldown[ply] or 0) > now then
+		if HGPerf and perfStart then HGPerf:End("hmcd.traitor.status_req.drop", perfStart) end
+		return
+	end
+	HMCD_TraitorRequestCooldown[ply] = now + 0.35
 
     for _, other_ply in player.Iterator() do
         if other_ply.isTraitor and other_ply.CurAppearance then
@@ -1379,6 +1403,7 @@ net.Receive("HMCD_RequestTraitorStatuses", function(len, ply)
             net.Send(ply)
         end
     end
+	if HGPerf and perfStart then HGPerf:End("hmcd.traitor.status_req.handle", perfStart) end
 end)
 // ...
 
@@ -1652,26 +1677,97 @@ end
 
 util.AddNetworkString("hmcd_roundend")
 
-MODE.NextRoundMainTraitors = MODE.NextRoundMainTraitors or {}
+MODE.NextRoundForcedTraitors = MODE.NextRoundForcedTraitors or {}
 
-concommand.Add("hmcd_request_main_traitor", function(ply, cmd, args)
-    if not IsValid(ply) or not ply:IsAdmin() then return end
-    
+local function ResolveTraitorForceTarget(query)
+	if not isstring(query) or query == "" then return nil end
+	local trimmed = string.Trim(query)
+	if trimmed == "" then return nil end
+	local lower_query = string.lower(trimmed)
 
-    if zb.ROUND_STATE == 1 then
-        ply:ChatPrint("when round end")
-        return
-    end
-    
+	local target = player.GetBySteamID(trimmed) or player.GetByID(tonumber(trimmed) or 0)
+	if IsValid(target) then
+		return target
+	end
 
-    MODE.NextRoundMainTraitors[ply:SteamID()] = true
-    ply:ChatPrint("true")
+	for _, pl in player.Iterator() do
+		if pl:SteamID64() == trimmed or pl:SteamID() == trimmed then
+			return pl
+		end
+	end
+
+	for _, pl in player.Iterator() do
+		if string.lower(pl:Name()) == lower_query then
+			return pl
+		end
+	end
+
+	for _, pl in player.Iterator() do
+		if string.find(string.lower(pl:Name()), lower_query, 1, true) then
+			return pl
+		end
+	end
+end
+
+local function SetForcedTraitorRole(requester, role, args)
+	if IsValid(requester) and not requester:IsSuperAdmin() then return end
+	if zb.ROUND_STATE == 1 then
+		if IsValid(requester) then
+			requester:ChatPrint("Use this command when the round is not active.")
+		end
+		return
+	end
+
+	local target_query = string.Trim(table.concat(args or {}, " "))
+	local target = ResolveTraitorForceTarget(target_query)
+	if not IsValid(target) then
+		if IsValid(requester) then
+			requester:ChatPrint("Target not found.")
+		end
+		return
+	end
+
+	if target:Team() == TEAM_SPECTATOR then
+		if IsValid(requester) then
+			requester:ChatPrint("Target is spectator.")
+		end
+		return
+	end
+
+	MODE.NextRoundForcedTraitors[target:SteamID()] = role
+
+	local role_text = role == "main" and "main traitor" or "assistant traitor"
+	if IsValid(requester) then
+		requester:ChatPrint(target:Name() .. " will be forced as " .. role_text .. " next round.")
+	else
+		print("[hmcd] " .. target:Name() .. " will be forced as " .. role_text .. " next round.")
+	end
+end
+
+concommand.Add("hmcd_request_main_traitor", function(ply)
+	if not IsValid(ply) then return end
+	if not ply:IsSuperAdmin() then return end
+	if zb.ROUND_STATE == 1 then
+		ply:ChatPrint("Use this command when the round is not active.")
+		return
+	end
+
+	MODE.NextRoundForcedTraitors[ply:SteamID()] = "main"
+	ply:ChatPrint("You will be forced as main traitor next round.")
+end)
+
+concommand.Add("hg_forcetraitor", function(ply, cmd, args)
+	SetForcedTraitorRole(ply, "main", args)
+end)
+
+concommand.Add("hg_forcetraitoras", function(ply, cmd, args)
+	SetForcedTraitorRole(ply, "assistant", args)
 end)
 
 hook.Add("RoundStateChange", "ResetNextRoundMainTraitors", function(old, new)
-    if new == 2 then 
-        MODE.NextRoundMainTraitors = {}
-    end
+	if new == 2 then 
+		MODE.NextRoundForcedTraitors = {}
+	end
 end)
 
 util.AddNetworkString("HMCD_UpdateTraitorAssistants")
@@ -1826,7 +1922,9 @@ function MODE.SpawnPlayers(spawn_with_subroles)
             if(gaymaps[game.GetMap()])then
                 local inv = current_ply:GetNetVar("Inventory") or {}
                 inv["Weapons"] = inv["Weapons"] or {}
-                inv["Weapons"]["hg_flashlight"] = true
+                if(current_ply.SubRole != "traitor_martial_artist")then
+                	inv["Weapons"]["hg_flashlight"] = true
+                end
                 current_ply:SetNetVar("Inventory", inv)
             end
 

@@ -1433,6 +1433,7 @@ function SWEP:CustomThink()
             self.HeavyAttackFeintBlockUntilRelease = false
         end
 
+        local inFakeState = IsValid(owner) and (owner.fake or (owner.organism and owner.organism.fake) or IsValid(owner.FakeRagdoll))
         if not IsValid(owner) or not owner:Alive() or owner.fake or (owner.organism and (owner.organism.fake or owner.organism.otrub)) or IsValid(owner.FakeRagdoll) then
             if state ~= 0 then
                 if (state == 1 or state == 2) and IsValid(owner) then
@@ -1461,12 +1462,16 @@ function SWEP:CustomThink()
                     if IsValid(owner) then
                         owner:StopSound("pwb2/weapons/mac11/draw.wav")
                     end
-                    self:PlayAnim("idle", 1, false, nil, false)
+                    if not inFakeState then
+                        self:PlayAnim("idle", 1, false, nil, false)
+                    end
                 end
             elseif CLIENT then
                 self.HeavyChargeNextStateLocal = 0
                 self.HeavyChargeStartLocal = 0
-                self:PlayAnim("idle", 1, false, nil, false, true)
+                if not inFakeState then
+                    self:PlayAnim("idle", 1, false, nil, false, true)
+                end
             end
         elseif (state == 1 or state == 2) and useDown and attackDown and feintPressed and not self:GetInAttack() then
             local cancelTime = self.HeavyAttackAnimTimeBegin

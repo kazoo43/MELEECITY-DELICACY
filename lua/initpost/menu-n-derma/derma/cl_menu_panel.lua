@@ -1432,7 +1432,8 @@ function PANEL:CreateTraitorMenuPanel()
         ["none"] = {cost = 0, name = "None", desc = "No special skillset."},
         ["infiltrator"] = {cost = 10, name = "Infiltrator", desc = "Can break necks, disguise as ragdolls."},
         ["assassin"] = {cost = 12, name = "Assassin", desc = "Disarm people quickly, proficient in shooting."},
-        ["chemist"] = {cost = 5, name = "Chemist", desc = "Resistant to chemicals, detects chemical agents in air."}
+        ["chemist"] = {cost = 5, name = "Chemist", desc = "Resistant to chemicals, detects chemical agents in air."},
+        ["martial_artist"] = {cost = 30, name = "Martial Artist", desc = "Nunchucks, buffed fists/kicks/melee, +40% stamina, disarm + neck break, no flashlight."}
     }
 
     local maxPoints = 30

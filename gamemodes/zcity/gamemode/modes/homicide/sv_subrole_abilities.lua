@@ -25,9 +25,25 @@ util.AddNetworkString("HMCD_UpdateChemicalResistance")
 hook.Add("PlayerPostThink", "HMCD_SubRoles_Abilities", function(ply)
 	if(MODE.RoleChooseRoundTypes[MODE.Type])then
 		if(ply:Alive() and ply.organism and not ply.organism.otrub)then
-			if(ply.SubRole == "traitor_infiltrator" or ply.SubRole == "traitor_infiltrator_soe")then
-				if(ply:KeyDown(IN_WALK))then
-					if(ply:KeyPressed(IN_RELOAD))then
+			local can_break_neck = (ply.SubRole == "traitor_infiltrator" or ply.SubRole == "traitor_infiltrator_soe" or ply.SubRole == "traitor_martial_artist")
+			local can_disarm = (ply.SubRole == "traitor_assasin" or ply.SubRole == "traitor_assasin_soe" or ply.SubRole == "traitor_martial_artist")
+			local is_martial_artist = ply.SubRole == "traitor_martial_artist"
+			local neck_break_key = (ply.SubRole == "traitor_martial_artist") and IN_RELOAD or IN_USE
+			local neck_break_allow = true
+			local neck_break_down = false
+			if(is_martial_artist)then
+				local walk_down = hg.KeyDown(ply, IN_WALK)
+				local reload_down = hg.KeyDown(ply, IN_RELOAD)
+				neck_break_down = walk_down and reload_down
+			else
+				neck_break_allow = hg.KeyDown(ply, IN_WALK)
+				neck_break_down = hg.KeyDown(ply, neck_break_key)
+			end
+			local neck_break_prev = ply.Ability_NeckBreak_KeyDownPrev == true
+
+			if(can_break_neck)then
+				if(neck_break_allow)then
+					if((ply.SubRole == "traitor_infiltrator" or ply.SubRole == "traitor_infiltrator_soe") and ply:KeyPressed(IN_RELOAD))then
 						local aim_ent, other_ply = hg.eyeTrace(ply,85).Entity
 						other_ply = hg.RagdollOwner(aim_ent) or aim_ent
 						
@@ -64,31 +80,33 @@ hook.Add("PlayerPostThink", "HMCD_SubRoles_Abilities", function(ply)
 						end
 					end
 					
-					if(ply:KeyPressed(IN_USE))then
-						local aim_ent, other_ply = MODE.GetPlayerTraceToOther(ply)
-						
-						if(IsValid(aim_ent))then
-							if(other_ply and MODE.CanPlayerBreakOtherNeck(ply, aim_ent))then
-								MODE.StartBreakingOtherNeck(ply, other_ply)
-							end
-						end
-					elseif(ply:KeyDown(IN_USE))then
+					if(can_break_neck and neck_break_down)then
 						if(ply.Ability_NeckBreak)then
 							MODE.ContinueBreakingOtherNeck(ply)
+						else
+							local aim_ent, other_ply = MODE.GetPlayerTraceToOther(ply)
+							
+							if(IsValid(aim_ent))then
+								if(other_ply and MODE.CanPlayerBreakOtherNeck(ply, aim_ent))then
+									MODE.StartBreakingOtherNeck(ply, other_ply)
+								end
+							end
 						end
 					end
-					
-					if(ply:KeyReleased(IN_USE))then
+
+					if(can_break_neck and neck_break_prev and not neck_break_down)then
 						MODE.StopBreakingOtherNeck(ply)
 					end
 				else
 					MODE.StopBreakingOtherNeck(ply)
 				end
 			end
+
+			ply.Ability_NeckBreak_KeyDownPrev = neck_break_allow and neck_break_down or false
 			
-			if(ply.SubRole == "traitor_assasin" or ply.SubRole == "traitor_assasin_soe")then
+			if(can_disarm)then
 				if(ply:KeyDown(IN_WALK))then
-					if(ply:KeyPressed(IN_USE))then
+					if(ply:KeyPressed(IN_USE) and not ply.Ability_DisarmNeedRelease and not ply.Ability_Disarm)then
 						local aim_ent, other_ply, trace = MODE.GetPlayerTraceToOther(ply, nil, MODE.DisarmReach)
 						
 						if(IsValid(aim_ent))then
@@ -104,6 +122,7 @@ hook.Add("PlayerPostThink", "HMCD_SubRoles_Abilities", function(ply)
 					
 					if(ply:KeyReleased(IN_USE))then
 						MODE.StopDisarmingOther(ply)
+						ply.Ability_DisarmNeedRelease = nil
 					end
 				else
 					MODE.StopDisarmingOther(ply)

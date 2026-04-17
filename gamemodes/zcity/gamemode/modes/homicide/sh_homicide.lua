@@ -48,6 +48,7 @@ local Skillsets = {
 	["infiltrator"] = {cost = 10, name = "Infiltrator", desc = "Can break necks, disguise as ragdolls. Max 220 stamina."},
 	["assassin"] = {cost = 12, name = "Assassin", desc = "Disarm people quickly, proficient in shooting, +80 stamina."},
 	["chemist"] = {cost = 8, name = "Chemist", desc = "Resistant to chemicals, detects chemical agents in air."},
+	["martial_artist"] = {cost = 30, name = "Martial Artist", desc = "Starts with nunchucks. Buffed fists, kicks and melee damage. +40% stamina. Can disarm and break necks, no disguises, no flashlight."},
 	["none"] = {cost = 0, name = "None", desc = "No special skillset."}
 }
 
@@ -439,6 +440,9 @@ local function ApplyLoadout(ply)
 	local inv = ply:GetNetVar("Inventory", {})
 	inv["Weapons"] = inv["Weapons"] or {}
 	inv["Attachments"] = inv["Attachments"] or {}
+	ply.MeleeDamageMul = nil
+	ply.FistsDamageMul = nil
+	ply.KickDamageMul = nil
 
 	if hasP22ExtraMag or hasP22Silencer then
 		local extraMagApplied = false
@@ -595,6 +599,18 @@ local function ApplyLoadout(ply)
 	elseif skillset == "chemist" then
 		ply.organism.stamina.max = 220
 		ply.SubRole = "traitor_chemist"
+	elseif skillset == "martial_artist" then
+		ply:Give("weapon_hg_nunchuks")
+		ply.organism.stamina.max = math.Round(220 * 1.4)
+		ply.MeleeDamageMul = 1.4
+		ply.FistsDamageMul = 2
+		ply.KickDamageMul = 2
+		ply.SubRole = "traitor_martial_artist"
+		inv["Weapons"]["hg_flashlight"] = nil
+		inv["Weapons"]["hg_brassknuckles"] = nil
+		if math.random(1, 100) == 1 then
+			inv["Weapons"]["hg_brassknuckles"] = true
+		end
 	else
 		ply.organism.stamina.max = 220
 		ply.SubRole = "traitor_default"
@@ -749,6 +765,31 @@ Can detect presence and potency of chemical agents in the air.]],
 			
 			ply:SetNetVar("Inventory", inv)
 			MODE.CleanChemicalsOfPlayer(ply)
+		end,
+	},
+	["traitor_martial_artist"] = {
+		Name = "Martial Artist",
+		Description = [[Starts with nunchucks and specializes in close-quarters combat.
+Has boosted fists, kicks and melee damage.
+Can disarm and break necks but cannot disguise as ragdolls.
+Has increased stamina (+40%) and no flashlight.
+Has a 1% chance to start with brass knuckles.]],
+		Objective = "Close the gap and dominate in melee combat. Disarm targets, break necks, and keep pressure.",
+		SpawnFunction = function(ply)
+			local inv = ply:GetNetVar("Inventory", {})
+			inv["Weapons"] = inv["Weapons"] or {}
+			inv["Attachments"] = inv["Attachments"] or {}
+			ply:Give("weapon_hg_nunchuks")
+			ply.organism.stamina.max = math.Round(220 * 1.4)
+			ply.MeleeDamageMul = 1.4
+			ply.FistsDamageMul = 2
+			ply.KickDamageMul = 2
+			inv["Weapons"]["hg_flashlight"] = nil
+			inv["Weapons"]["hg_brassknuckles"] = nil
+			if math.random(1, 100) == 1 then
+				inv["Weapons"]["hg_brassknuckles"] = true
+			end
+			ply:SetNetVar("Inventory", inv)
 		end,
 	},
 	--==//

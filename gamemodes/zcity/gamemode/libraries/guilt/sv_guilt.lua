@@ -355,7 +355,7 @@ hook.Add("Org Think", "Its_Karma_Bro",function(owner, org, timeValue)
 
     if (ply.Karma or 100) < 35 then
         if math.random(2000) == 1 then
-            hg.organism.Vomit(owner)
+            hg.organism.VomitNormal(owner)
         end
     end
 end)

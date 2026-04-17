@@ -11,6 +11,86 @@ function hg.ClearArmorRestrictions(ply)
 	ply.ArmorRestrictions = nil
 end
 
+local function ResolveArmorTarget(query)
+	if not isstring(query) or query == "" then return nil end
+	local trimmed = string.Trim(query)
+	if trimmed == "" then return nil end
+	local lowerQuery = string.lower(trimmed)
+
+	local target = player.GetBySteamID(trimmed) or player.GetByID(tonumber(trimmed) or 0)
+	if IsValid(target) then
+		return target
+	end
+
+	for _, pl in ipairs(player.GetAll()) do
+		if pl:SteamID64() == trimmed or pl:SteamID() == trimmed then
+			return pl
+		end
+	end
+
+	for _, pl in ipairs(player.GetAll()) do
+		if string.lower(pl:Name()) == lowerQuery then
+			return pl
+		end
+	end
+
+	for _, pl in ipairs(player.GetAll()) do
+		if string.find(string.lower(pl:Name()), lowerQuery, 1, true) then
+			return pl
+		end
+	end
+end
+
+concommand.Add("hg_givearmor", function(ply, cmd, args)
+	if IsValid(ply) and not ply:IsAdmin() then return end
+	if not args or #args < 2 then
+		if IsValid(ply) then
+			ply:ChatPrint("Usage: hg_givearmor <username> <armor entity>")
+		else
+			print("Usage: hg_givearmor <username> <armor entity>")
+		end
+		return
+	end
+
+	local armorArg = args[#args] or ""
+	local targetQuery = string.Trim(table.concat(args, " ", 1, #args - 1))
+	local target = ResolveArmorTarget(targetQuery)
+	if not IsValid(target) then
+		if IsValid(ply) then
+			ply:ChatPrint("Target not found.")
+		else
+			print("Target not found.")
+		end
+		return
+	end
+
+	local armorName = string.Replace(armorArg, "ent_armor_", "")
+	local placement = hg.GetArmorPlacement(armorName)
+	if not placement or not hg.armor[placement] or not hg.armor[placement][armorName] then
+		if IsValid(ply) then
+			ply:ChatPrint("Invalid armor entity: " .. armorArg)
+		else
+			print("Invalid armor entity: " .. armorArg)
+		end
+		return
+	end
+
+	local ok = hg.AddArmor(target, armorName)
+	if ok then
+		if IsValid(ply) then
+			ply:ChatPrint("Gave " .. armorName .. " to " .. target:Name() .. ".")
+		else
+			print("Gave " .. armorName .. " to " .. target:Name() .. ".")
+		end
+	else
+		if IsValid(ply) then
+			ply:ChatPrint("Failed to give armor.")
+		else
+			print("Failed to give armor.")
+		end
+	end
+end)
+
 
 function hg.CanEquipArmorPiece(ply, equipment)
 	if not IsValid(ply) or not ply.ArmorRestrictions or not istable(ply.ArmorRestrictions) then
@@ -121,6 +201,9 @@ function hg.AddArmor(ply, equipment, ent)
 		end
 	end
 
+	ply.armors_health = ply.armors_health or {}
+	ply.armors_health[equipment] = 1
+
     ply.armors[placement] = equipment
     
     ply:SyncArmor()
@@ -154,6 +237,8 @@ function hg.DropArmorForce(ent, equipment)
         local phys = equipmentEnt:GetPhysicsObject()
 
         if IsValid(equipmentEnt) then table.RemoveByValue(ent.armors, equipment) end
+		ent.armors_health = ent.armors_health or {}
+		ent.armors_health[equipment] = nil
         
         if hg.armor[placement][equipment].voice_change then
             if eightbit and eightbit.EnableEffect and ent.UserID then
@@ -204,6 +289,8 @@ function hg.DropArmor(ply, equipment)
         local phys = equipmentEnt:GetPhysicsObject()
         if IsValid(phys) then phys:SetVelocity(ply:EyeAngles():Forward() * 150) end
         if IsValid(equipmentEnt) then table.RemoveByValue(ply.armors, equipment) end
+		ply.armors_health = ply.armors_health or {}
+		ply.armors_health[equipment] = nil
         
         if hg.armor[placement][equipment].voice_change then
             if eightbit and eightbit.EnableEffect and ply.UserID then
@@ -222,6 +309,81 @@ util.AddNetworkString("AddFlash")
 
 local ArmorEffect
 local force
+local armorBreakSound = "armorbreak.mp3"
+local brokenArmorOverlayMat = "models/props_wasteland/metal_tram001a"
+local function BreakArmorPiece(owner, placement, armor, dmgInfo, hit)
+	if not IsValid(owner) then return end
+	if not owner.armors or owner.armors[placement] ~= armor then return end
+
+	local fxPos = (hit and isvector(hit) and hit) or (dmgInfo and dmgInfo.GetDamagePosition and dmgInfo:GetDamagePosition()) or owner:WorldSpaceCenter()
+	local fxDir = vector_up
+	if dmgInfo and dmgInfo.GetDamageForce then
+		fxDir = -dmgInfo:GetDamageForce()
+		if fxDir:LengthSqr() > 0 then
+			fxDir:Normalize()
+		else
+			fxDir = vector_up
+		end
+	end
+
+	local dropped = hg.DropArmorForce(owner, armor)
+	if IsValid(dropped) then
+		dropped.Unpickupable = true
+		dropped:SetNWBool("BrokenArmor", true)
+		dropped:SetPos(fxPos)
+		dropped:SetColor(Color(205, 200, 195, 255))
+		dropped:SetSubMaterial(0, brokenArmorOverlayMat)
+
+		local phys = dropped:GetPhysicsObject()
+		if IsValid(phys) then
+			phys:SetVelocity(fxDir * math.random(18, 30) + VectorRand() * 3 + Vector(0, 0, 10))
+			phys:AddAngleVelocity(VectorRand() * 35)
+		end
+	else
+		owner.armors[placement] = nil
+		owner.armors_health = owner.armors_health or {}
+		owner.armors_health[armor] = nil
+		owner:SyncArmor()
+	end
+
+	local effectData = EffectData()
+	effectData:SetOrigin(fxPos)
+	effectData:SetStart(fxPos + fxDir * 6)
+	effectData:SetNormal(fxDir)
+	effectData:SetMagnitude(3)
+	effectData:SetRadius(6)
+	effectData:SetScale(2)
+	util.Effect("MetalSpark", effectData, true, true)
+	sound.Play(armorBreakSound, fxPos, 75, 100, 1)
+end
+
+local function DamageArmorCondition(owner, placement, armor, dmg, dmgInfo, hit)
+	if not IsValid(owner) then return end
+	if not owner.armors or owner.armors[placement] ~= armor then return end
+
+	local armorData = hg.armor[placement] and hg.armor[placement][armor]
+	if not armorData then return end
+
+	owner.armors_health = owner.armors_health or {}
+	local hp = owner.armors_health[armor] or 1
+	if hp <= 0 then return end
+
+	local protection = math.max(armorData.protection or 1, 1)
+	local inflictor = dmgInfo and dmgInfo.GetInflictor and dmgInfo:GetInflictor() or nil
+	local penetration = IsValid(inflictor) and inflictor.bullet and inflictor.bullet.Penetration or 1
+	local damageMul = dmgInfo:IsDamageType(DMG_BUCKSHOT) and 1.6 or (dmgInfo:IsDamageType(DMG_SLASH) and 0.45 or 1.25)
+	local placementMul = placement == "head" and 1.35 or (placement == "face" and 1.2 or 1)
+	local penetrationMul = 1 + math.max(penetration - protection * 0.35, 0) * 0.12
+	local loss = math.Clamp((dmg * damageMul * placementMul * penetrationMul) / (protection * 3.2), 0.045, 0.65)
+
+	hp = math.Clamp(hp - loss, 0, 1)
+	owner.armors_health[armor] = hp
+
+	if hp <= 0 then
+		BreakArmorPiece(owner, placement, armor, dmgInfo, hit)
+	end
+end
+
 local function protec(org, bone, dmg, dmgInfo, placement, armor, scale, scaleprot, punch, boneindex, dir, hit, ricochet)
 	if not force and org.owner.armors[placement] ~= armor then return 0 end
 	force = nil
@@ -255,6 +417,7 @@ local function protec(org, bone, dmg, dmgInfo, placement, armor, scale, scalepro
 	scale = scale * (dmgInfo:IsDamageType(DMG_SLASH) and 0.1 or 1)
 	
 	ArmorEffect(placement, armor, dmgInfo, org, hit, prot)
+	DamageArmorCondition(org.owner, placement, armor, dmg, dmgInfo, hit)
 
 	if prot < 0 then
 		//dmgInfo:ScaleDamage(scale)
@@ -506,18 +669,7 @@ end
 
 hg.organism.input_list.protovisor = function(org, bone, dmg, dmgInfo, ...)
 	force = true
-
-	org.owner.armors_health = org.owner.armors_health or {}
-
 	local protect = protec(org, bone, dmg, dmgInfo, "head", "protovisor", 0.8, 0.7, true, ...)
-	
-	org.owner.armors_health["protovisor"] = org.owner.armors_health["protovisor"] or 1
-	org.owner.armors_health["protovisor"] = org.owner.armors_health["protovisor"] * math.max((1 - dmg * 10), 0)
-	
-	if org.owner.armors_health["protovisor"] == 0 then
-		org.owner.armors["head"] = nil
-	end
-	//dmgInfo:GetAttacker():ChatPrint(tostring(org.owner.armors_health["protovisor"]))
 	return protect
 end
 

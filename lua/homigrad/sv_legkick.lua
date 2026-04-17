@@ -41,6 +41,7 @@ function PLAYER:LegAttack()
     if isMidAir then
         dmg = math.min(dmg * 0.5, 21)
     end
+    dmg = dmg * (self.KickDamageMul or 1)
     dmg = dmg * kickNerf
     --print(dmg)
     --print(speedmul)

@@ -25,6 +25,7 @@ for i = 2, 13 do
 end
 
 local CHUNKS_IN_WORLD = {}
+local nextGoreThink = 0
 
 local function CreateBrainChunk(origin, direction)
     if #CHUNKS_IN_WORLD >= 30 then return end
@@ -66,6 +67,10 @@ local function CreateBrainChunk(origin, direction)
 end
 
 hook.Add("Think", "BrainChunks_GoreSimProcessor", function()
+    local curTime = CurTime()
+    if curTime < nextGoreThink then return end
+    nextGoreThink = curTime + 0.02
+    local perfStart = HGPerf and HGPerf:Begin() or nil
     for i = #CHUNKS_IN_WORLD, 1, -1 do
         local ent = CHUNKS_IN_WORLD[i]
         if not IsValid(ent) then table.remove(CHUNKS_IN_WORLD, i) continue end
@@ -116,12 +121,13 @@ hook.Add("Think", "BrainChunks_GoreSimProcessor", function()
                 state.SlideSpeed = state.SlideSpeed - 0.02
             end
 
-            if moved and GORE_CVARS.visuals and #GORE_DECAL_REGISTRY > 0 and (ent.NextDrip or 0) < CurTime() then
+            if moved and GORE_CVARS.visuals and #GORE_DECAL_REGISTRY > 0 and (ent.NextDrip or 0) < curTime then
                 util.Decal(table.Random(GORE_DECAL_REGISTRY), ent:GetPos() + Vector(0,0,2), ent:GetPos() - Vector(0,0,5), ent)
-                ent.NextDrip = CurTime() + math.Rand(0.03, 0.08)
+                ent.NextDrip = curTime + math.Rand(0.03, 0.08)
             end
         end
     end
+    if HGPerf and perfStart then HGPerf:End("organs.brainchunks.think", perfStart) end
 end)
 
 local function isCrush(dmgInfo)

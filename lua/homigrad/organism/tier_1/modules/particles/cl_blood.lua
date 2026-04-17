@@ -1,4 +1,4 @@
-﻿hg.bloodparticles1 = hg.bloodparticles1 or {}
+hg.bloodparticles1 = hg.bloodparticles1 or {}
 bloodparticles_hook = bloodparticles_hook or {}
 
 local tr = {

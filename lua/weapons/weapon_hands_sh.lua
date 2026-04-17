@@ -36,6 +36,23 @@ SWEP.BreakBoneMul = 0.33
 SWEP.Penetration = 1
 SWEP.DamageMul = 1
 SWEP.animtime = 0
+SWEP.HeadbuttReach = 25
+SWEP.HeadbuttCooldown = 2.35
+SWEP.HeadbuttPitchStart = -22
+SWEP.HeadbuttPitchThreshold = 20
+SWEP.HeadbuttSwingWindow = 0.45
+SWEP.HeadbuttMinSwingSpeed = 55
+SWEP.HeadbuttMinBodySpeed = 0
+SWEP.HeadbuttDamage = 19
+SWEP.HeadbuttBaseForce = 55000
+SWEP.HeadbuttSpeedForceMul = 225
+SWEP.HeadbuttVelocityForceMul = 110
+SWEP.HeadbuttTargetVelocityMul = 95
+SWEP.HeadbuttSelfVelocityMul = 65
+SWEP.HeadbuttConcussionTarget = 1.85
+SWEP.HeadbuttConcussionSelf = 1
+SWEP.HeadbuttDisorientationTarget = 1.15
+SWEP.HeadbuttDisorientationSelf = 0.55
 
 SWEP.BlockTier = 1
 SWEP.MeleeMaterial = "none"
@@ -60,12 +77,129 @@ local function qerp(delta, a, b)
 	return Lerp(qdelta, a, b)
 end
 
+function SWEP:IsValidStandingHeadbutter(ply)
+	if not IsValid(ply) or not ply:IsPlayer() then return false end
+	if not ply:Alive() then return false end
+	if ply:InVehicle() then return false end
+	if ply:Crouching() then return false end
+	if not ply:OnGround() then return false end
+	local org = ply.organism
+	if ply.fake or IsValid(ply.FakeRagdoll) or (org and (org.fake or org.otrub)) then return false end
+	return true
+end
+
+function SWEP:ApplyHeadbuttNeuro(ply, concussion, disorientation)
+	if not IsValid(ply) then return end
+	local org = ply.organism
+	if not org then return end
+	org.concussion = math.min((org.concussion or 0) + concussion, 10)
+	org.disorientation = math.min((org.disorientation or 0) + disorientation, 10)
+end
+
+function SWEP:TryDownwardHeadbutt()
+	if CLIENT then return end
+	local owner = self:GetOwner()
+	if not self:GetFists() then
+		self.HeadbuttState = "idle"
+		return
+	end
+	if not self:IsValidStandingHeadbutter(owner) then
+		self.HeadbuttState = "idle"
+		return
+	end
+	if owner:KeyDown(IN_ATTACK2) then
+		self.HeadbuttState = "idle"
+		return
+	end
+	if not owner:KeyDown(IN_USE) then
+		self.HeadbuttState = "idle"
+		return
+	end
+	local now = CurTime()
+	if now < (self.HeadbuttNextHit or 0) then
+		self.HeadbuttState = "idle"
+		return
+	end
+	local pitch = math.NormalizeAngle(owner:EyeAngles().p)
+	if self.HeadbuttState == "idle" then
+		if pitch <= self.HeadbuttPitchStart then
+			self.HeadbuttState = "down_start"
+			self.HeadbuttStartTime = now
+			self.HeadbuttStartPitch = pitch
+		end
+		return
+	end
+	local elapsed = now - (self.HeadbuttStartTime or now)
+	if elapsed > self.HeadbuttSwingWindow then
+		self.HeadbuttState = "idle"
+		return
+	end
+	local delta = pitch - (self.HeadbuttStartPitch or pitch)
+	if delta < self.HeadbuttPitchThreshold then return end
+	local swingSpeed = delta / math.max(elapsed, 0.01)
+	self.HeadbuttState = "idle"
+	if swingSpeed < self.HeadbuttMinSwingSpeed then return end
+	local velocity = owner:GetVelocity()
+	local speed = velocity:Length()
+	if speed < self.HeadbuttMinBodySpeed then return end
+	local startPos = owner:EyePos()
+	local tr = util.TraceHull({
+		start = startPos,
+		endpos = startPos + owner:GetAimVector() * self.HeadbuttReach,
+		filter = {owner, hg.GetCurrentCharacter(owner)},
+		mins = Vector(-10, -10, -10),
+		maxs = Vector(10, 10, 10),
+		mask = MASK_SHOT_HULL
+	})
+	local target = tr.Entity
+	local hitPos = tr.HitPos
+	if not IsValid(target) or not target:IsPlayer() then
+		local trLine = util.TraceLine({
+			start = startPos,
+			endpos = startPos + owner:GetAimVector() * (self.HeadbuttReach + 16),
+			filter = {owner, hg.GetCurrentCharacter(owner)},
+			mask = MASK_SHOT
+		})
+		if IsValid(trLine.Entity) and trLine.Entity:IsPlayer() then
+			target = trLine.Entity
+			hitPos = trLine.HitPos
+		end
+	end
+	if not IsValid(target) or not target:IsPlayer() or target == owner then return end
+	if not self:IsValidStandingHeadbutter(target) then return end
+	local forward = owner:EyeAngles():Forward()
+	local forceDir = (forward - Vector(0, 0, 0.85)):GetNormalized()
+	local totalForce = self.HeadbuttBaseForce + swingSpeed * self.HeadbuttSpeedForceMul + speed * self.HeadbuttVelocityForceMul
+	local dmg = DamageInfo()
+	dmg:SetDamage(self.HeadbuttDamage)
+	dmg:SetAttacker(owner)
+	dmg:SetInflictor(self)
+	dmg:SetDamageType(DMG_CRUSH)
+	dmg:SetDamagePosition(hitPos)
+	dmg:SetDamageForce(forceDir * totalForce)
+	target:TakeDamageInfo(dmg)
+	target:SetVelocity(forceDir * (self.HeadbuttTargetVelocityMul + speed * 0.25))
+	owner:SetVelocity(-forceDir * (self.HeadbuttSelfVelocityMul + speed * 0.08))
+	sound.Play("Flesh.ImpactHard", hitPos, 75, math.random(96, 104), 1)
+	owner:ViewPunch(Angle(8, 0, 0))
+	target:ViewPunch(Angle(14, 0, 0))
+	self:ApplyHeadbuttNeuro(target, self.HeadbuttConcussionTarget, self.HeadbuttDisorientationTarget)
+	self:ApplyHeadbuttNeuro(owner, self.HeadbuttConcussionSelf, self.HeadbuttDisorientationSelf)
+	self.HeadbuttNextHit = now + self.HeadbuttCooldown
+	self:SetNextPrimaryFire(math.max(self:GetNextPrimaryFire(), self.HeadbuttNextHit))
+	self:SetNextSecondaryFire(math.max(self:GetNextSecondaryFire(), self.HeadbuttNextHit))
+end
+
 function SWEP:Initialize()
 	self:SetNextIdle(CurTime() + 5)
 	self:SetNextDown(CurTime() + 5)
 	self:SetHoldType(self.HoldType)
 	self:SetFists(false)
 	self:SetBlocking(false)
+	self.HeadbuttState = "idle"
+	self.HeadbuttStartTime = 0
+	self.HeadbuttStartPitch = 0
+	self.HeadbuttNextHit = 0
 end
 
 function SWEP:OnRemove()
@@ -1502,6 +1636,8 @@ function SWEP:Think()
 		return
 	end
 
+	self:TryDownwardHeadbutt()
+
 	if owner.PlayerClassName == "headcrabzombie" and not self:GetCarrying() then
 		self:SetFists(true)
 	end
@@ -1849,7 +1985,7 @@ function SWEP:AttackFront(special_attack, rand)
 			end)
 		end
 
-		Mul = Mul * (owner.MeleeDamageMul or 1)
+		Mul = Mul * (owner.FistsDamageMul or owner.MeleeDamageMul or 1)
 
 		if Ent:IsPlayer() and IsValid(Ent:GetActiveWeapon()) and Ent:GetActiveWeapon().GetBlocking then
 			Mul = Mul * (self:GetBlocking() and 0.5 or 1)

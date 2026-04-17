@@ -224,6 +224,51 @@ module[2] = function(owner, org, mulTime)
 end
 
 util.AddNetworkString("bloodsquirt2")
+util.AddNetworkString("vomitsquirt2")
+
+local function GetVomitDecal()
+	return math.random(6) == 1 and "Organism.VomitMedium" or "Organism.VomitSmall"
+end
+
+local function VomitDecalSpray(owner, ent, mat)
+	if not IsValid(ent) or not mat then return end
+
+	local basePos = mat:GetTranslation() + mat:GetAngles():Right() * 6 + mat:GetAngles():Forward() * 1
+	local forward = mat:GetAngles():Right()
+	local step = 0
+	local steps = 4
+	local timerName = "hg_vomit_decal_" .. owner:EntIndex() .. "_" .. math.floor(CurTime() * 1000) .. "_" .. math.random(1000, 9999)
+	timer.Create(timerName, 0.025, steps, function()
+		if not IsValid(owner) or not IsValid(ent) then timer.Remove(timerName) return end
+		step = step + 1
+
+		local spread = VectorRand(-0.14, 0.14)
+		spread[3] = spread[3] * 0.3
+		local dir = (forward * 0.58 + Vector(0, 0, -0.72) + spread):GetNormalized()
+		local endPos = basePos + dir * (130 + step * 85)
+		local tr = util.TraceLine({
+			start = basePos,
+			endpos = endPos,
+			filter = {ent, owner, owner.FakeRagdoll},
+			mask = MASK_SOLID_BRUSHONLY
+		})
+
+		if tr.Hit then
+			util.Decal(GetVomitDecal(), tr.HitPos + tr.HitNormal, tr.HitPos - tr.HitNormal, tr.Entity)
+		else
+			local trDown = util.TraceLine({
+				start = endPos,
+				endpos = endPos + Vector(0, 0, -360),
+				filter = {ent, owner, owner.FakeRagdoll},
+				mask = MASK_SOLID_BRUSHONLY
+			})
+
+			if trDown.Hit then
+				util.Decal(GetVomitDecal(), trDown.HitPos + trDown.HitNormal, trDown.HitPos - trDown.HitNormal, trDown.Entity)
+			end
+		end
+	end)
+end
 
 function hg.organism.Vomit(owner, snd)
 	if !hg.IsValidPlayer(owner) then return end
@@ -245,8 +290,7 @@ function hg.organism.Vomit(owner, snd)
 
 	owner:SetNetVar("vomiting", CurTime() + 1.5)
 
-	ent:EmitSound(snd or "zcitysnd/real_sonar/"..(ThatPlyIsFemale(ent) and "female" or "male").."_cough"..math.random(4)..".mp3")
-	if !on_spine then ent:EmitSound("vomit/vomit5.mp3") end
+	ent:EmitSound(snd or "puke.wav")
 	
 	if owner.armors and owner.armors.face and hg.armor.face[owner.armors.face].voice_change then
 		owner:SetNetVar("zableval_masku", true)
@@ -259,6 +303,58 @@ function hg.organism.Vomit(owner, snd)
 			net.WriteVector(mat:GetTranslation() + mat:GetAngles():Right() * 6 + mat:GetAngles():Forward() * 1)
 			net.WriteVector(mat:GetAngles():Right() * 2 * math.Clamp(org.pulse / 70, 0.4, 1))
 			net.Broadcast()
+		end
+	end
+end
+
+function hg.organism.VomitNormal(owner, snd)
+	if !hg.IsValidPlayer(owner) then return end
+
+	local org = owner.organism
+	local ent = hg.GetCurrentCharacter(owner)
+
+	local bon = "ValveBiped.Bip01_Head1"
+	local bone = ent:LookupBone(bon)
+	local mat = ent:GetBoneMatrix(bone)
+
+	if not mat then return end
+
+	local on_spine = mat:GetAngles():Right()[3] > 0.25
+	if on_spine then
+		org.vomitInThroat = true
+	end
+
+	owner:SetNetVar("vomiting", CurTime() + 1.5)
+	org.disorientation = math.min((org.disorientation or 0) + 1.5, 6)
+	org.consciousness = math.max((org.consciousness or 1) - 0.08, 0)
+	org.hungry = math.min(math.max((org.hungry or 0) + 7, 0), 100)
+	org.satiety = math.max((org.satiety or 0) - 20, 0)
+
+	ent:EmitSound(snd or "puke.wav")
+
+	if owner.armors and owner.armors.face and hg.armor.face[owner.armors.face].voice_change then
+		owner:SetNetVar("zableval_masku", true)
+	else
+		if !on_spine then
+			net.Start("vomitsquirt2")
+			net.WriteEntity(ent)
+			net.WriteString(bon)
+			net.WriteMatrix(mat)
+			net.WriteVector(mat:GetTranslation() + mat:GetAngles():Right() * 6 + mat:GetAngles():Forward() * 1)
+			net.WriteVector(mat:GetAngles():Right() * 2 * math.Clamp(org.pulse / 70, 0.4, 1))
+			net.Broadcast()
+
+			local name = "hg_normal_vomit_" .. owner:EntIndex()
+			timer.Create(name, 0.09, 2, function()
+				if not IsValid(owner) then return end
+				local entNow = hg.GetCurrentCharacter(owner)
+				if not IsValid(entNow) then return end
+				local boneNow = entNow:LookupBone(bon)
+				if not boneNow then return end
+				local matNow = entNow:GetBoneMatrix(boneNow)
+				if not matNow then return end
+				VomitDecalSpray(owner, entNow, matNow)
+			end)
 		end
 	end
 end

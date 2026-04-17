@@ -294,15 +294,48 @@ function MODE.DisarmOther(ply, other_ply, aim_ent)
 		end
 
 		hg.LightStunPlayer(other_ply)
-		timer.Simple(0,function()
+
+		local function start_neck_grab(tries_left)
+			if not IsValid(ply) or not IsValid(other_ply) then return end
+			tries_left = tries_left or 12
+			hg.SetCarryEnt2(ply, nil)
+
 			local rag = hg.GetCurrentCharacter(other_ply)
+			if not IsValid(rag) or rag == other_ply then
+				if SERVER and other_ply:Alive() then
+					hg.Fake(other_ply)
+				end
+				rag = other_ply.FakeRagdoll or other_ply:GetNWEntity("RagdollDeath", other_ply.FakeRagdoll)
+			end
+
 			if IsValid(rag) and rag ~= other_ply then
 				local bon = rag:LookupBone("ValveBiped.Bip01_Head1")
 				local physnum = rag:TranslateBoneToPhysBone(bon)
 				local phys = rag:GetPhysicsObjectNum(physnum)
-				local dist = 25--phys:GetPos():Distance(ply:EyePos())
-				
-				hg.SetCarryEnt2(ply, rag, bon, phys:GetMass(), Vector(-2,0,0), ply:GetAimVector() * dist + ply:EyeAngles():Up() * 5 + ply:EyeAngles():Right() * -5 + ply:GetShootPos(), ply:EyeAngles() + Angle(-90, 90, 0))
+				if IsValid(phys) then
+					local dist = 25
+					hg.SetCarryEnt2(ply, rag, bon, phys:GetMass(), Vector(-2,0,0), ply:GetAimVector() * dist + ply:EyeAngles():Up() * 5 + ply:EyeAngles():Right() * -5 + ply:GetShootPos(), ply:EyeAngles() + Angle(-90, 90, 0))
+					return
+				end
+			end
+
+			if tries_left > 0 then
+				timer.Simple(0.05, function()
+					start_neck_grab(tries_left - 1)
+				end)
+			end
+		end
+
+		local should_dislocate = ply.SubRole == "traitor_martial_artist" and other_ply.organism and not other_ply.organism.rarmamputated and math.random(1, 100) <= 50
+
+		if(should_dislocate)then
+			other_ply.organism.rarmdislocation = true
+			other_ply:EmitSound("newbonebreak/break" .. math.random(10) .. ".wav", 75, math.random(120, 135), 1, CHAN_AUTO, 0, 30)
+		end
+
+		timer.Simple(0, function()
+			if IsValid(ply) and IsValid(other_ply) then
+				start_neck_grab(14)
 			end
 		end)
 	end
@@ -361,6 +394,9 @@ function MODE.ContinueDisarmingOther(ply)
 			if(ability_data.Progress >= 100)then
 				if(SERVER)then
 					MODE.DisarmOther(ply, victim, aim_ent)
+				end
+				if(ply.SubRole == "traitor_martial_artist")then
+					ply.Ability_DisarmNeedRelease = true
 				end
 				
 				

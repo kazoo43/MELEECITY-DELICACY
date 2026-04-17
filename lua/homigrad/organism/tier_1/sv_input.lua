@@ -558,6 +558,13 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 	local inf = IsValid(dmgInfo:GetInflictor()) and not dmgInfo:GetInflictor():IsPlayer() and dmgInfo:GetInflictor() or (dmgInfo:GetAttacker():IsPlayer() and dmgInfo:GetAttacker():GetActiveWeapon()) or dmgInfo:GetAttacker()
 	inf = IsValid(inf.weapon) and inf.weapon or inf
 	if IsValid(inf) then dmgInfo:SetInflictor(inf) end
+
+	local inflictorClass = IsValid(inf) and inf:GetClass() or ""
+	local inflictorBase = IsValid(inf) and inf.Base or ""
+	local isClubMelee = dmgInfo:IsDamageType(DMG_CLUB) and (inflictorBase == "weapon_melee" or inflictorClass == "weapon_melee")
+	if isClubMelee then
+		dmgInfo:ScaleDamage(1.65)
+	end
 	
 	local dmg = dmgInfo:GetDamage()
 
@@ -859,7 +866,8 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 		local slow_pain = (1 - instantPainMul) * painadd
 		org.painadd = org.painadd + slow_pain
 		//org.avgpain = org.avgpain + instant_pain
-		org.shock = math.min(org.shock + instaPain * shockMul * 4.5 * math.Clamp(pen / 5,1,2), 70)
+		local shockAdd = instaPain * shockMul * 4.5 * math.Clamp(pen / 5,1,2)
+		org.shock = math.min(org.shock + shockAdd, 70)
 		org.immobilization = math.min(org.immobilization + immobilization * immobilizationMul, 30)
 		org.lasthit = CurTime()
 		
@@ -874,9 +882,9 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 	
 		org.shock_turn = 10 * (!org.otrub and 1 or 0.1)
 	
-		local shockFakeThreshold = org.shock_turn * 2.2 * analgesiaMul * painkillerMul * (meleeHit and 1.9 or 1)
-		if org.shock > shockFakeThreshold and (org.nextShockFake or 0) < CurTime() then
-			org.nextShockFake = CurTime() + (meleeHit and 2.25 or 1.5)
+		local shockFakeThreshold = org.shock_turn * 3.6 * analgesiaMul * painkillerMul * (meleeHit and 1.5 or 1)
+		if shockAdd > 2 and org.shock > shockFakeThreshold and (org.nextShockFake or 0) < CurTime() then
+			org.nextShockFake = CurTime() + (meleeHit and 3.5 or 2.75)
 			timer.Simple(0, function()
 				if not IsValid(org.owner) then return end
 				hg.Fake(org.owner)
@@ -1121,7 +1129,7 @@ hook.Add("EntityTakeDamage", "homigrad-damage", function(ent, dmgInfo)
 		hg.organism.AmputateLimb(org, "rarm")
 	end--]]
 
-	dmgInfo:ScaleDamage(dmgInfo:IsDamageType(DMG_BURN) and 0.015 or 0.15)
+	dmgInfo:ScaleDamage(dmgInfo:IsDamageType(DMG_BURN) and 0.015 or (dmgInfo:IsDamageType(DMG_CLUB) and 0.25 or 0.15))
 	
 	takeRagdollDamage(ent, dmgInfo)
 

@@ -286,6 +286,28 @@ properties.Add( "vomit", {
 	end 
 } )
 
+properties.Add( "vomit_normal", {
+	MenuLabel = "Make normal vomit",
+	Order = 9.1,
+	MenuIcon = "pluv/pluv51.png",
+
+	Filter = check,
+	Action = function( self, ent )
+		self:MsgStart()
+			net.WriteEntity( ent )
+		self:MsgEnd()
+	end,
+	Receive = function( self, length, ply )
+		local ent = net.ReadEntity()
+
+		if not self:Filter(ent, ply) then return end
+        ent = hg.RagdollOwner(ent) or ent
+
+		hg.organism.VomitNormal(ent)
+		print(tostring(ply:Nick() or ply) .." forced ".. tostring(ent:Nick() or ent) .." to vomit normally.")
+	end 
+} )
+
 properties.Add( "lobotomize", {
 	MenuLabel = "Lobotomize", -- Name to display on the context menu
 	Order = 10, -- The order to display this property relative to other properties

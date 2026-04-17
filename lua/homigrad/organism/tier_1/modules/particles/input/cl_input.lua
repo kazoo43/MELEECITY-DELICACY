@@ -14,6 +14,8 @@ local mat_huy = Material("effects/blood_core")
 mat_huy:SetTexture("$basetexture",texture)
 
 local cloudmat = Material("effects/smoke_b")
+local vomitColorPrimary = Color(229, 220, 148, 140)
+local vomitColorSecondary = Color(238, 235, 210, 130)
 
 --оставь это лучше выглядит
 --[[for i = 4, 6 do
@@ -287,6 +289,59 @@ net.Receive("bloodsquirt2", function()
 
 		dir = dir:Forward() * len
 		addBloodPart(pos + VectorRand(-0.2, 0.2), dir * amt * 90 + VectorRand(-amt * 25,amt * 25), mat_huy, math.Rand(3,3), math.Rand(3,3), false, false)
+		i = i - 1
+	end)
+	timer.Adjust(name, 0)
+end)
+
+net.Receive("vomitsquirt2", function()
+	local ent = net.ReadEntity()
+	
+	if not IsValid(ent) then return end
+
+	local bone = net.ReadString()
+	local bone = ent:LookupBone(bone)
+	local mat = net.ReadMatrix()
+	local pos = net.ReadVector()
+	local dir = net.ReadVector()
+	local len = dir:Length()
+
+	local ent = hg.RagdollOwner(ent) or ent
+	local ply = ent
+	local localPos, localDir = WorldToLocal(pos, dir:Angle(), mat:GetTranslation(), mat:GetAngles())
+
+	if ply == lply then
+		localPos:Add(-Vector(2,-2,0))
+	end
+
+	local name = "squirtvomit2"..ent:EntIndex()
+	local i = 34
+	local maxI = i
+	timer.Create(name, 0.012 * game.GetTimeScale(), i + 10, function()
+		if not IsValid(ent) then timer.Remove(name) return end
+		local ent = IsValid(ent.FakeRagdoll) and ent.FakeRagdoll or ent
+		local amt = math.max(i / maxI, 0.25)
+		if math.random(6) == 1 then return end
+		local mat = ent:GetBoneMatrix(bone)
+		if not mat then timer.Remove(name) return end
+
+		if ply == lply and (i == 34 or i == 17) then
+			ViewPunch(Angle(9,0,0))
+		end
+
+		local pos, dir = LocalToWorld(localPos, localDir, mat:GetTranslation(), mat:GetAngles())
+		
+		if lply == ply then
+			dir = lply:EyeAngles()
+		end
+
+		local curve = VectorRand(-0.14, 0.14)
+		curve[3] = curve[3] * 0.5
+		local dirDown = (dir:Forward() * 0.48 + Vector(0, 0, -0.52) + curve):GetNormalized()
+		local vel = dirDown * (len * amt * 74) + VectorRand(-amt * 12, amt * 12)
+		local col = math.random(4) == 1 and vomitColorSecondary or vomitColorPrimary
+		hg.addBloodPart2(pos + VectorRand(-0.25, 0.25), vel, nil, math.Rand(2.2, 3.2), math.Rand(2.2, 3.2), 2.0 + math.Rand(0, 0.7), false, ply, col)
+		hg.addBloodPart2(pos + VectorRand(-0.2, 0.2), vel * 0.7 + VectorRand(-3.5, 3.5), nil, math.Rand(1.2, 2.0), math.Rand(1.2, 2.0), 1.5 + math.Rand(0, 0.55), false, ply, col)
 		i = i - 1
 	end)
 	timer.Adjust(name, 0)

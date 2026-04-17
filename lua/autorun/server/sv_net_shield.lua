@@ -24,21 +24,40 @@ if SERVER then
         ["GambitPrinter.Withdraw"] = 5,
         ["GambitPrinter.Cool"] = 5,
     }
+    local CurTime = CurTime
+    local SysTime = SysTime
 
     local function wrap(name, recv)
+        local limit = SPECIAL[name] or DEFAULT_LIMIT
         return function(len, ply)
             if not IsValid(ply) then return end
             local now = CurTime()
             ply._mcity_net_windows = ply._mcity_net_windows or {}
             local w = ply._mcity_net_windows[name]
             if not w or now - w.t >= 1 then
-                w = { t = now, c = 0 }
-                ply._mcity_net_windows[name] = w
+                if not w then
+                    w = { t = now, c = 0, drop = 0 }
+                    ply._mcity_net_windows[name] = w
+                else
+                    w.t = now
+                    w.c = 0
+                    w.drop = 0
+                end
             end
             w.c = w.c + 1
-            local limit = SPECIAL[name] or DEFAULT_LIMIT
-            if w.c > limit then return end
-            return recv(len, ply)
+            if w.c > limit then
+                w.drop = w.drop + 1
+                if HGPerf then
+                    HGPerf:AddCounter("net.drop." .. name, 1)
+                end
+                return
+            end
+            local perfStart = HGPerf and HGPerf:Begin() or nil
+            local result = recv(len, ply)
+            if HGPerf and perfStart then
+                HGPerf:AddNetSample(name, len or 0, SysTime() - perfStart)
+            end
+            return result
         end
     end
 
