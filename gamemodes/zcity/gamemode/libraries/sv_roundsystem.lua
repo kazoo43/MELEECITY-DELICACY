@@ -352,11 +352,16 @@ end
 zb.ModesChances = zb.ModesChances or {}
 
 function zb.GetChance(name, modes, amtplayed)
-	local mode = zb:GetMode(name)
-	if mode == "hmcd" then
-		return 1
+	-- увеличенный шанс для homicide
+	if name == "hmcd" then
+		return 0.7  -- 70% шанс
 	end
-	return 0
+
+	-- остальные режимы делят оставшиеся 30%
+	local otherModesCount = table.Count(modes) - 1
+	if otherModesCount <= 0 then return 0 end
+
+	return 0.3 / otherModesCount
 end
 
 function zb.GetModesChances()
