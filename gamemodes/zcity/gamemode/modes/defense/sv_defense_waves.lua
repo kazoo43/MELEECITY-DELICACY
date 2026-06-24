@@ -8,7 +8,11 @@ local MODE = MODE
      if _OrigSpawn then
         npc = _OrigSpawn(ply, npcClass, pos, "default")
      else
-         npc = ZBaseSpawnZBaseNPC(npcClass, pos, nil, "default")
+         npc = ents.Create(npcClass)
+         if IsValid(npc) then
+             npc:SetPos(pos)
+             npc:Spawn()
+         end
    end
     if not IsValid(npc) then return end
 
